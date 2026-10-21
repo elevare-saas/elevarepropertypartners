@@ -1,7 +1,7 @@
 /* User actions, ported from the demo's delegated click/input handlers */
 import {applyPersona, applyVibe, autoNext, go, nextOf, parseAsk, refinements} from './engine';
 import {S, cur, fresh, render, requestScroll, setS, setTrail, update, type Step} from './store';
-import type {Mode} from './data';
+import {LISTINGS, type Mode} from './data';
 
 export const goTo = (step: string) => go(step as Step);
 export function next(){ S.done.add(cur); if (cur==="confirm") S.pick=null; go(cur==="book"?"send":nextOf(cur)); }
@@ -24,7 +24,20 @@ export function toggleMust(k: string){ if (S.must.has(k)) S.must.delete(k); else
 export function togglePeek(){ S.peek=!S.peek; update(); }
 export function preview(id: string){ S.pick=id; S.peek=false; go("match"); }
 export function jumpToMatches(){ S.pick=null; S.peek=false; go("match"); }
-export function browse(m: Mode){ const name=S.name; setS(fresh()); S.name=name; S.mode=m; S.done.add("mode"); S.must=new Set(); go("match"); }
+export function browse(m: Mode, area?: string, pick?: string){
+  const name=S.name; setS(fresh()); S.name=name; S.mode=m; S.done.add("mode"); S.must=new Set();
+  if (area){ S.area=area; S.done.add("area"); }
+  if (pick) S.pick=pick;
+  go("match");
+}
+/* landing shortcuts: open one listing, or start the questions with "who" already answered */
+export function openListing(id: string){ const p=LISTINGS.find(x=>x.id===id); if (p) browse(p.mode,undefined,id); }
+export function startAs(m: Mode, who: string){
+  const name=S.name; setS(fresh()); S.name=name; S.mode=m; S.done.add("mode");
+  if (m==="buy") S.who=who; else applyPersona(who);
+  S.done.add("who"); setTrail(["welcome","mode","who"]); go(nextOf("who"),false);
+}
+export const startQuiz = () => go("mode");
 export function skip(){
   if (cur==="area"){ S.area="any"; S.done.add("area"); }
   if (cur==="property"){ S.type="any"; S.done.delete("property"); }

@@ -1,25 +1,66 @@
-import {memo, useLayoutEffect} from 'react';
+import {memo, useEffect, useLayoutEffect, useState} from 'react';
 import mark from './assets/elevare-mark.png';
 import {back, home, LABEL, quiz, moveInDate, money, budget, TIMELINES, whoLabel, vibeOf} from './concierge/engine';
 import {TYPES} from './concierge/data';
 import {S, cur, stageKey, takeScroll, useStore} from './concierge/store';
-import {goTo} from './concierge/actions';
+import {goTo, startQuiz} from './concierge/actions';
 import LivePanel, {liveVisible} from './components/LivePanel';
 import Stage from './components/Stage';
-import {cx} from './components/ui';
+import Landing from './components/landing/Landing';
+import {wrap} from './components/landing/parts';
+import {Cta, cx} from './components/ui';
+
+const NAV = [['services', 'Services'], ['journey', 'Concierge'], ['homes', 'Portfolio'], ['areas', 'Areas'], ['owners', 'Owners'], ['contact', 'Contact']];
+
+const Brand = () => (
+  <a className="flex items-center gap-[12px] no-underline text-inherit" href="#" id="home" aria-label="Elevare Property Partners, home"
+    onClick={e => { e.preventDefault(); home(); }}>
+    <img src={mark} alt="" className="w-[46px] h-auto block" />
+    <span>
+      <b className="block font-wordmark font-medium text-[20px] tracking-[.14em] leading-none">ELEVARE</b>
+      <small className="flex items-center whitespace-nowrap gap-[6px] text-[8.5px] tracking-[.3em] text-muted mt-[5px] before:content-[''] before:w-[12px] before:h-px before:bg-faint after:content-[''] after:w-[12px] after:h-px after:bg-faint">PROPERTY PARTNERS</small>
+    </span>
+  </a>
+);
+
+/* homepage header: clear over the hero photo, solid once the page moves; a menu sheet on phones */
+function SiteHeader() {
+  const [solid, setSolid] = useState(false);
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    const on = () => setSolid(window.scrollY > 40);
+    on(); window.addEventListener('scroll', on, {passive: true});
+    return () => window.removeEventListener('scroll', on);
+  }, []);
+  return (
+    <header className={cx('fixed top-0 inset-x-0 z-40 [transition:background_.3s,border-color_.3s]',
+      solid || open ? 'bg-[rgba(5,4,9,.88)] backdrop-blur-[12px] [border-bottom:1px_solid_var(--color-line)]' : 'bg-transparent [border-bottom:1px_solid_transparent]')}>
+      <div className={cx(wrap, 'flex items-center justify-between gap-[16px] h-[72px]')}>
+        <Brand />
+        <nav aria-label="Sections" className="upto999:hidden flex gap-[26px] text-[13.5px]">
+          {NAV.map(([id, l]) => <a key={id} href={'#' + id} className="text-[rgba(245,242,250,.82)] no-underline hover:text-white">{l}</a>)}
+        </nav>
+        <div className="flex items-center gap-[10px]">
+          <Cta size="sm" className="whitespace-nowrap upto480:hidden" onClick={startQuiz}>Start your brief</Cta>
+          <button type="button" aria-expanded={open} aria-controls="menu" onClick={() => setOpen(o => !o)}
+            className="from1000:hidden border border-line bg-transparent rounded-full h-[40px] px-[16px] text-[13.5px] cursor-pointer">{open ? 'Close' : 'Menu'}</button>
+        </div>
+      </div>
+      <nav id="menu" aria-label="Sections" hidden={!open} className="from1000:hidden! [border-top:1px_solid_var(--color-line)]">
+        <div className={cx(wrap, 'grid py-[10px]')}>
+          {NAV.map(([id, l]) => <a key={id} href={'#' + id} onClick={() => setOpen(false)} className="text-ink no-underline text-[18px] font-display py-[10px] [border-bottom:1px_solid_var(--color-line)]">{l}</a>)}
+          <Cta className="justify-center mt-[16px] mb-[8px]" onClick={() => { setOpen(false); startQuiz(); }}>Start your brief →</Cta>
+        </div>
+      </nav>
+    </header>
+  );
+}
 
 function Header() {
   return (
     <header className="flex items-center justify-between gap-[12px] pt-[18px] pb-[14px]">
-      <a className="flex items-center gap-[12px] no-underline text-inherit" href="#" id="home" aria-label="Elevare Property Partners, start over"
-        onClick={e => { e.preventDefault(); home(); }}>
-        <img src={mark} alt="" className="w-[46px] h-auto block" />
-        <span>
-          <b className="block font-wordmark font-medium text-[20px] tracking-[.14em] leading-none">ELEVARE</b>
-          <small className="flex items-center gap-[6px] text-[8.5px] tracking-[.3em] text-muted mt-[5px] before:content-[''] before:w-[12px] before:h-px before:bg-faint after:content-[''] after:w-[12px] after:h-px after:bg-faint">PROPERTY PARTNERS</small>
-        </span>
-      </a>
-      <button type="button" hidden={cur === 'welcome' || cur === 'matching'} onClick={back}
+      <Brand />
+      <button type="button" hidden={cur === 'matching'} onClick={back}
         className="border border-line bg-transparent rounded-full py-[7px] px-[14px] text-[13px] cursor-pointer text-muted hover:text-ink hover:border-muted">
         ← Back
       </button>
@@ -81,10 +122,16 @@ export default function App() {
   const hasLive = liveVisible();
 
   useLayoutEffect(() => { document.body.classList.toggle('has-live', hasLive); }, [hasLive]);
+  useLayoutEffect(() => { document.body.classList.toggle('is-landing', cur === 'welcome'); });
   useLayoutEffect(() => {
     const s = takeScroll();
     if (s) { try { window.scrollTo({top: s.top, behavior: s.smooth ? 'smooth' : 'auto'}); } catch { /* ignore */ } }
   });
+
+  if (cur === 'welcome') return <>
+    <SiteHeader />
+    <main className="relative z-[1]"><Landing /></main>
+  </>;
 
   return (
     <div className={cx('max-w-[760px] mx-auto relative z-[1]', hasLive && 'from1000:max-w-[1120px]')}>

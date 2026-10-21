@@ -1,0 +1,272 @@
+{
+ "hero": {
+  "src": "/photos/hero.webp",
+  "w": 1920,
+  "h": 1277,
+  "caption": "Promthep Cape, Phuket",
+  "title": "Laem Phromthep in Phuket (5733622568).jpg",
+  "author": "edwin.11",
+  "license": "CC BY 2.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Laem_Phromthep_in_Phuket_(5733622568).jpg"
+ },
+ "sunset": {
+  "src": "/photos/sunset.webp",
+  "w": 1800,
+  "h": 1203,
+  "caption": "Sunset on the Andaman coast",
+  "title": "Promthep Cape - panoramio (2).jpg",
+  "author": "Mikhail Deynekin",
+  "license": "CC BY-SA 3.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Promthep_Cape_-_panoramio_(2).jpg"
+ },
+ "area-kata": {
+  "src": "/photos/area-kata.webp",
+  "w": 1200,
+  "h": 797,
+  "caption": "Kata Beach",
+  "title": "Kata Beach November 2011 - panoramio.jpg",
+  "author": "Jacek Lesniowski",
+  "license": "CC BY-SA 3.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Kata_Beach_November_2011_-_panoramio.jpg"
+ },
+ "area-karon": {
+  "src": "/photos/area-karon.webp",
+  "w": 1200,
+  "h": 901,
+  "caption": "Karon Beach",
+  "title": "Karon Beach,Phuket (25).jpg",
+  "author": "กสิณธร ราชโอรส",
+  "license": "CC BY-SA 4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Karon_Beach,Phuket_(25).jpg"
+ },
+ "area-patong": {
+  "src": "/photos/area-patong.webp",
+  "w": 1200,
+  "h": 900,
+  "caption": "Patong Bay",
+  "title": "Patong Beach Phuket November 2012.jpg",
+  "author": "Arnaud-Victor Monteux",
+  "license": "CC BY-SA 4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Patong_Beach_Phuket_November_2012.jpg"
+ },
+ "area-kamala": {
+  "src": "/photos/area-kamala.webp",
+  "w": 1200,
+  "h": 675,
+  "caption": "Kamala coast from the air",
+  "title": "Phuket, Kamala 2014 febr - panoramio (2).jpg",
+  "author": "Roma Neus",
+  "license": "CC BY 3.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Phuket,_Kamala_2014_febr_-_panoramio_(2).jpg"
+ },
+ "area-surin": {
+  "src": "/photos/area-surin.webp",
+  "w": 1200,
+  "h": 798,
+  "caption": "Surin Beach",
+  "title": "Surin Beach.JPG",
+  "author": "Jpatokal",
+  "license": "CC BY-SA 4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Surin_Beach.JPG"
+ },
+ "area-bang-tao": {
+  "src": "/photos/area-bang-tao.webp",
+  "w": 1200,
+  "h": 900,
+  "caption": "Bang Tao Beach",
+  "title": "Bang Tao Beach of Sheraton Grande Laguna Phuket - panoramio (4).jpg",
+  "author": "Tiger@西北",
+  "license": "CC BY-SA 3.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Bang_Tao_Beach_of_Sheraton_Grande_Laguna_Phuket_-_panoramio_(4).jpg"
+ },
+ "area-nai-harn": {
+  "src": "/photos/area-nai-harn.webp",
+  "w": 1200,
+  "h": 800,
+  "caption": "Nai Harn Bay",
+  "title": "Nai harn beach phuket (58).jpg",
+  "author": "Wolfgang Holzem",
+  "license": "CC BY-SA 4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Nai_harn_beach_phuket_(58).jpg"
+ },
+ "area-rawai": {
+  "src": "/photos/area-rawai.webp",
+  "w": 1200,
+  "h": 752,
+  "caption": "Longtail boats at Rawai",
+  "title": "Phuket - Rawai Beach 11.jpg",
+  "author": "ADwarf",
+  "license": "Public domain",
+  "page": "https://commons.wikimedia.org/wiki/File:Phuket_-_Rawai_Beach_11.jpg"
+ },
+ "area-chalong": {
+  "src": "/photos/area-chalong.webp",
+  "w": 1200,
+  "h": 798,
+  "caption": "The Big Buddha above Chalong",
+  "title": "The Big Buddha, Phuket.jpg",
+  "author": "Subhrajyoti07",
+  "license": "CC BY-SA 4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:The_Big_Buddha,_Phuket.jpg"
+ },
+ "area-phuket-town": {
+  "src": "/photos/area-phuket-town.webp",
+  "w": 1200,
+  "h": 900,
+  "caption": "Shophouses in Phuket Old Town",
+  "title": "Buildings in Old Phuket Town.jpg",
+  "author": "Christophe95",
+  "license": "CC BY-SA 4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Buildings_in_Old_Phuket_Town.jpg"
+ },
+ "area-cape-yamu": {
+  "src": "/photos/area-cape-yamu.webp",
+  "w": 1200,
+  "h": 789,
+  "caption": "Phang Nga Bay, which Cape Yamu faces",
+  "title": "Isla Tapu, Phuket, Tailandia, 2013-08-20, DD 36.JPG",
+  "author": "Diego Delso",
+  "license": "CC BY-SA 3.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Isla_Tapu,_Phuket,_Tailandia,_2013-08-20,_DD_36.JPG"
+ },
+ "villa-bay": {
+  "src": "/photos/villa-bay.webp",
+  "w": 1400,
+  "h": 788,
+  "caption": "Infinity pool over the bay",
+  "title": "Swimming Pool of Lembongan Cliff Villas - 2015.03 - panoramio.jpg",
+  "author": "rheins",
+  "license": "CC BY 3.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Swimming_Pool_of_Lembongan_Cliff_Villas_-_2015.03_-_panoramio.jpg"
+ },
+ "villa-palms": {
+  "src": "/photos/villa-palms.webp",
+  "w": 1200,
+  "h": 833,
+  "caption": "Pool and palms",
+  "title": "Aldrovandi Villa Borghese - swimming pool.jpg",
+  "author": "Jjpcondor",
+  "license": "CC BY-SA 3.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Aldrovandi_Villa_Borghese_-_swimming_pool.jpg"
+ },
+ "villa-loungers": {
+  "src": "/photos/villa-loungers.webp",
+  "w": 1200,
+  "h": 857,
+  "caption": "Pool terrace",
+  "title": "Le Piman Resort Pool 2009 - panoramio.jpg",
+  "author": "Kenzo",
+  "license": "CC BY 3.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Le_Piman_Resort_Pool_2009_-_panoramio.jpg"
+ },
+ "villa-hills": {
+  "src": "/photos/villa-hills.webp",
+  "w": 1200,
+  "h": 900,
+  "caption": "Pool below the hills",
+  "title": "Pool area view - CBK.jpg",
+  "author": "HutheMeow",
+  "license": "CC BY-SA 4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Pool_area_view_-_CBK.jpg"
+ },
+ "villa-sea": {
+  "src": "/photos/villa-sea.webp",
+  "w": 1200,
+  "h": 738,
+  "caption": "Infinity edge to the sea",
+  "title": "Infinity pool - villa-mon-temps,Awaji.jpg",
+  "author": "Lions Times",
+  "license": "CC BY-SA 4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Infinity_pool_-_villa-mon-temps,Awaji.jpg"
+ },
+ "villa-garden": {
+  "src": "/photos/villa-garden.webp",
+  "w": 1200,
+  "h": 900,
+  "caption": "Garden pool villa",
+  "title": "Swimming pool and Makuti-thatched villa in Malindi.jpg",
+  "author": "Lebu Ayiga",
+  "license": "CC BY-SA 4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Swimming_pool_and_Makuti-thatched_villa_in_Malindi.jpg"
+ },
+ "town-terrace": {
+  "src": "/photos/town-terrace.webp",
+  "w": 1200,
+  "h": 900,
+  "caption": "Garden terraces",
+  "title": "BRk - Pool in balconies.jpg",
+  "author": "HutheMeow",
+  "license": "CC BY-SA 4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:BRk_-_Pool_in_balconies.jpg"
+ },
+ "town-house": {
+  "src": "/photos/town-house.webp",
+  "w": 1200,
+  "h": 900,
+  "caption": "Two-storey house",
+  "title": "Block near pool BRK.jpg",
+  "author": "HutheMeow",
+  "license": "CC BY-SA 4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Block_near_pool_BRK.jpg"
+ },
+ "condo-tower": {
+  "src": "/photos/condo-tower.webp",
+  "w": 1200,
+  "h": 900,
+  "caption": "Sea-view condo tower",
+  "title": "Patong Beach.jpg",
+  "author": "Wikimedia Commons contributor",
+  "license": "CC BY-SA 3.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Patong_Beach.jpg"
+ },
+ "interior-living": {
+  "src": "/photos/interior-living.webp",
+  "w": 1200,
+  "h": 795,
+  "caption": "Thai teak living room",
+  "title": "Mandarin Oriental Dhara Dhevi Chiang Mai 07.jpg",
+  "author": "Takeaway",
+  "license": "CC BY-SA 3.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Mandarin_Oriental_Dhara_Dhevi_Chiang_Mai_07.jpg"
+ },
+ "interior-bed": {
+  "src": "/photos/interior-bed.webp",
+  "w": 1200,
+  "h": 801,
+  "caption": "Four-poster bedroom",
+  "title": "Hotel room in fisheye (18961172206).jpg",
+  "author": "cloud.shepherd",
+  "license": "CC BY 2.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Hotel_room_in_fisheye_(18961172206).jpg"
+ },
+ "interior-daybed": {
+  "src": "/photos/interior-daybed.webp",
+  "w": 1200,
+  "h": 716,
+  "caption": "Beachside daybed",
+  "title": "Hansar Cha Am Room.jpg",
+  "author": "Hansarbangkok",
+  "license": "CC BY-SA 4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Hansar_Cha_Am_Room.jpg"
+ },
+ "interior-condo": {
+  "src": "/photos/interior-condo.webp",
+  "w": 1200,
+  "h": 900,
+  "caption": "Condo bedroom with a view",
+  "title": "Hotel Holiday Inn Bangkok Siam 5.jpg",
+  "author": "Rangan Datta Wiki",
+  "license": "CC BY-SA 4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Hotel_Holiday_Inn_Bangkok_Siam_5.jpg"
+ },
+ "life-bang-tao": {
+  "src": "/photos/life-bang-tao.webp",
+  "w": 1200,
+  "h": 800,
+  "caption": "Beach garden, Bang Tao",
+  "title": "Phuket beach club (53668312430).jpg",
+  "author": "Raita Futo from Tokyo, Japan",
+  "license": "CC BY 2.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Phuket_beach_club_(53668312430).jpg"
+ }
+}

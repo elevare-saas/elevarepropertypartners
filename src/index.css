@@ -12,7 +12,7 @@
   --color-line: #2A2436;
   --color-ink: #F5F2FA;
   --color-muted: #A79FB6;
-  --color-faint: #6E6680;
+  --color-faint: #857D98;
   --color-violet: #7A3FE0;
   --color-pink: #E05CB5;
   --color-sky: #55B6F2;
@@ -41,6 +41,8 @@
 @custom-variant upto520 (@media (max-width: 520px));
 @custom-variant upto560 (@media (max-width: 560px));
 @custom-variant upto600 (@media (max-width: 600px));
+@custom-variant upto759 (@media (max-width: 759px));
+@custom-variant from760 (@media (min-width: 760px));
 @custom-variant upto999 (@media (max-width: 999px));
 @custom-variant from1000 (@media (min-width: 1000px));
 
@@ -97,7 +99,22 @@
   @media (max-width: 999px) {
     body.has-live { padding-block-end: 110px; }
   }
+  /* the homepage runs full-bleed; its sections set their own gutters */
+  body.is-landing { padding-inline: 0; padding-block-end: 0; overflow-x: clip; }
+  @media (max-width: 759px) {
+    body.has-dock { padding-block-end: 76px; }
+  }
+  /* warm ivory bands: the same components, re-toned by redefining the colour tokens */
+  .paper {
+    --color-bg: #F4F1EC; --color-surface: #FFFFFF; --color-surface-2: #EEE9E1; --color-line: #DDD5CA;
+    --color-ink: #17131D; --color-muted: #544D5E; --color-faint: #6C6576; --color-bar: #CFC6BA;
+    --color-lilac: #5B2BB5; --color-good: #1F7A4A; --color-pink: #B8358F;
+    color: var(--color-ink); background: var(--color-bg); color-scheme: light;
+  }
+  html { scroll-behavior: smooth; }
   img { max-width: 100%; }
+  /* Cormorant's old-style figures make "1" read as "I" */
+  h1, h2, .font-display { font-variant-numeric: lining-nums; }
   h1, h2 { font-family: var(--font-display); font-weight: 500; text-wrap: balance; margin: 0; line-height: 1.05; letter-spacing: -.01em; }
   button, input, textarea { font: inherit; color: inherit; }
   :focus-visible { outline: 2px solid var(--color-sky); outline-offset: 2px; }
@@ -105,6 +122,30 @@
   input[type="range"] { width: 100%; accent-color: var(--color-pink); }
 }
 
+/* brand homepage motion: drifting light behind the hero, the market ticker, sections that rise into view */
+@layer components {
+  .aurora { position: absolute; border-radius: 50%; filter: blur(80px); opacity: .55; animation: drift 18s ease-in-out infinite alternate; }
+  .aurora.a1 { width: 520px; height: 520px; left: 2%; top: -8%; background: #7A3FE0; }
+  .aurora.a2 { width: 420px; height: 420px; right: 6%; top: 8%; background: #E05CB5; opacity: .32; animation-duration: 23s; animation-delay: -6s; }
+  .aurora.a3 { width: 360px; height: 360px; left: 38%; top: 34%; background: #55B6F2; opacity: .22; animation-duration: 27s; animation-delay: -12s; }
+  @keyframes drift { from { transform: translate(0,0) scale(1); } to { transform: translate(6%,8%) scale(1.15); } }
+
+  .ticker { mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); }
+  .ticker-track { display: flex; width: max-content; animation: marquee 60s linear infinite; }
+  .ticker:hover .ticker-track { animation-play-state: paused; }
+  @keyframes marquee { to { transform: translateX(-50%); } }
+
+  /* hero photo: a slow settle from slightly zoomed in */
+  .kenburns { animation: kenburns 22s cubic-bezier(.2,.6,.2,1) both; transform-origin: 60% 40%; }
+  @keyframes kenburns { from { transform: scale(1.14); } to { transform: scale(1); } }
+  .no-scrollbar { scrollbar-width: none; }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+
+  [data-reveal] { opacity: 0; transform: translateY(28px); transition: opacity .9s ease, transform .9s cubic-bezier(.2,.7,.2,1); }
+  [data-reveal][data-in] { opacity: 1; transform: none; }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  [data-reveal] { opacity: 1 !important; transform: none !important; }
   * { transition: none !important; animation: none !important; }
 }

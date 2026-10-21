@@ -3,6 +3,7 @@ import mark from '../assets/elevare-mark.png';
 import {line} from '../concierge/engine';
 import {cur} from '../concierge/store';
 import type {Listing} from '../concierge/data';
+import {listingPhoto} from '../concierge/photos';
 
 export const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(' ');
 
@@ -128,31 +129,8 @@ export function Next({label, onNext, onSkip}: {label?: string; onNext: () => voi
   );
 }
 
-/* illustrated property thumbnail (stands in for listing photos) */
-export function Art({p, k = ''}: {p: Listing; k?: string}) {
-  const h = p.hue, g = `g${p.id}${k}`, sea = p.am.includes('seaview'), condo = p.type === 'condo';
-  return (
-    <svg viewBox="0 0 320 160" preserveAspectRatio="xMidYMid slice" role="img" aria-label={`Illustration of ${p.name}`} className="block w-full h-full">
-      <defs>
-        <linearGradient id={g} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor={`hsl(${260 + h / 6} 45% 22%)`} />
-          <stop offset=".6" stopColor={`hsl(${320 + h / 10} 55% 55%)`} />
-          <stop offset="1" stopColor="hsl(30 80% 70%)" />
-        </linearGradient>
-      </defs>
-      <rect width="320" height="160" fill={`url(#${g})`} />
-      <circle cx="240" cy="70" r="18" fill="hsl(38 95% 75%)" opacity=".9" />
-      {sea
-        ? <><rect y="80" width="320" height="28" fill={`hsl(${200 + h / 12} 45% 32%)`} /><rect y="80" width="320" height="2" fill="#fff" opacity=".3" /></>
-        : <path d="M0 94 Q60 62 130 86 T320 78 V110 H0Z" fill="hsl(270 30% 20%)" opacity=".75" />}
-      <rect y="104" width="320" height="56" fill="hsl(270 18% 14%)" />
-      {condo
-        ? <><rect x="80" y="30" width="90" height="76" fill="hsl(30 25% 88%)" />{[40, 56, 72, 88].map(y => <rect key={y} x="90" y={y} width="70" height="9" fill="hsl(40 90% 68%)" opacity=".75" />)}</>
-        : <><rect x="70" y="60" width="130" height="44" fill="hsl(30 25% 88%)" /><path d="M60 62 L135 38 L210 62Z" fill={`hsl(${h} 25% 22%)`} /><rect x="90" y="72" width="24" height="32" fill="hsl(40 90% 65%)" opacity=".85" /><rect x="124" y="72" width="54" height="18" fill="hsl(40 90% 70%)" opacity=".7" /></>}
-      {(p.am.includes('pool') || condo) && <><rect x="40" y="114" width="200" height="26" rx="3" fill={`hsl(${190 + h / 20} 80% 55%)`} /><rect x="40" y="114" width="200" height="3" fill="#fff" opacity=".4" /></>}
-      <path d="M268 150 C266 120 270 96 262 72" stroke="hsl(270 20% 10%)" strokeWidth="4" fill="none" />
-      <g fill="hsl(270 20% 10%)"><path d="M262 72 q-26 -6 -40 10 q22 -4 40 -10Z" /><path d="M262 72 q24 -12 40 2 q-22 -2 -40 -2Z" /><path d="M262 72 q-8 -22 -30 -26 q16 10 30 26Z" /><path d="M262 72 q10 -22 32 -22 q-18 8 -32 22Z" /></g>
-    </svg>
-  );
+/* property photo (illustrative: the listings are samples); fills its box */
+export function Art({p, eager}: {p: Listing; k?: string; eager?: boolean}) {
+  const ph = listingPhoto(p);
+  return <img src={ph.src} width={ph.w} height={ph.h} alt="" loading={eager ? 'eager' : 'lazy'} decoding="async" className="block w-full h-full object-cover" />;
 }
-

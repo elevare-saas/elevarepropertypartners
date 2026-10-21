@@ -29,8 +29,10 @@ const listify = (a: string[]) => a.length<2 ? (a[0]||"") : a.slice(0,-1).join(",
 export const recArea = () => S.mode==="buy" ? BUY_REC[S.who] : (vibeOf()?.[3] || P()?.area);
 
 /* ============ MARKET + MATCHING ============ */
-export function market(p: Listing){ const f=areaOf(p.area)?.f ?? 1;
-  return p.mode==="rent" ? RENT_BASE[Math.min(6,Math.max(1,p.beds))]*TYPE_RENT[p.type]*f : SQM_BASE[p.type]*f*p.sqm; }
+/* indicative market figure for any home: monthly rent (rent) or sale price (buy) */
+export function marketFor(mode: Listing["mode"], area: string, type: Listing["type"], beds: number, sqm: number){ const f=areaOf(area)?.f ?? 1;
+  return mode==="rent" ? RENT_BASE[Math.min(6,Math.max(1,beds))]*TYPE_RENT[type]*f : SQM_BASE[type]*f*sqm; }
+export const market = (p: Listing) => marketFor(p.mode,p.area,p.type,p.beds,p.sqm);
 export interface Calc { m: number; diff: number; pct: number; lease?: number; yield?: number; sqmP?: number; sqmM?: number }
 export function calc(p: Listing): Calc { const m=market(p);
   if (p.mode==="rent"){ const diff=m-p.price; return {m,diff,pct:Math.round(100*diff/m),lease:diff*S.lease}; }

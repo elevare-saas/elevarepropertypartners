@@ -130,7 +130,7 @@ export function Match() {
         <div className="aspect-[16/8] max-w-full relative">
           <Art p={p} />
           <span className="absolute top-[12px] left-[12px] bg-[rgba(5,4,9,.75)] text-white rounded-full py-[5px] px-[12px] text-[12px] font-bold backdrop-blur-[4px]">{top.s}% match</span>
-          <span className="absolute top-[12px] right-[12px] bg-[rgba(5,4,9,.75)] text-white rounded-full py-[5px] px-[12px] text-[11px] font-semibold backdrop-blur-[4px]">Sample listing</span>
+          <span className="absolute top-[12px] right-[12px] bg-[rgba(5,4,9,.75)] text-white rounded-full py-[5px] px-[12px] text-[11px] font-semibold backdrop-blur-[4px]">Sample listing · illustrative photo</span>
         </div>
         <div className="pt-[18px] px-[20px] pb-[20px] grid gap-[14px]">
           <div className="flex justify-between items-end gap-[12px] flex-wrap">
