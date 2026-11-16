@@ -1,0 +1,8 @@
+dist
+node_modules
+public
+package-lock.json
+bun.lock
+*.md
+src/demo
+src/concierge/photos.json

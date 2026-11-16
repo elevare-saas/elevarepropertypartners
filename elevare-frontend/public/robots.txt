@@ -1,0 +1,8 @@
+# Elevare Property Partners
+User-agent: *
+Allow: /
+Disallow: /admin-login
+Disallow: /admin-dashboard
+Disallow: /api/
+
+Sitemap: https://www.elevarepropertypartners.com/sitemap.xml

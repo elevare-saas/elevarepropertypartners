@@ -1,0 +1,479 @@
+[
+ {
+  "id": "RWS",
+  "mode": "rent",
+  "name": "Rawai Studio Loft",
+  "area": "Rawai",
+  "type": "condo",
+  "beds": 1,
+  "sqm": 45,
+  "price": 17500,
+  "am": [
+   "fibre",
+   "workspace",
+   "cowork",
+   "gym",
+   "furnished",
+   "amenities"
+  ],
+  "ex": [
+   "Fibre 1 Gbps included",
+   "Monthly cleaning"
+  ],
+  "hue": 300,
+  "line": "Bright one-bed loft with a proper desk, two minutes from Rawai’s cafés and coworking.",
+  "photo": "/photos/interior-condo.webp"
+ },
+ {
+  "id": "KTC",
+  "mode": "rent",
+  "name": "Kata Hill Condo 2A",
+  "area": "Kata",
+  "type": "condo",
+  "beds": 1,
+  "sqm": 58,
+  "price": 24000,
+  "am": [
+   "seaview",
+   "beach",
+   "gym",
+   "fibre",
+   "amenities",
+   "furnished",
+   "cowork"
+  ],
+  "ex": [
+   "Building pool & gym",
+   "Wifi included"
+  ],
+  "hue": 195,
+  "line": "Sea-view one-bed above Kata, a short walk to the beach and restaurants.",
+  "photo": "/photos/condo-tower.webp"
+ },
+ {
+  "id": "CHL",
+  "mode": "rent",
+  "name": "Chalong Fit Residence",
+  "area": "Chalong",
+  "type": "condo",
+  "beds": 1,
+  "sqm": 40,
+  "price": 13500,
+  "am": [
+   "gym",
+   "fibre",
+   "amenities",
+   "furnished",
+   "commute"
+  ],
+  "ex": [
+   "Gym membership included",
+   "Water included"
+  ],
+  "hue": 20,
+  "line": "Compact one-bed on Soi Ta-iad, next to the island’s best training camps.",
+  "photo": "/photos/interior-bed.webp"
+ },
+ {
+  "id": "PTE",
+  "mode": "rent",
+  "name": "Old Town Executive Suites",
+  "area": "Phuket Town",
+  "type": "condo",
+  "beds": 2,
+  "sqm": 85,
+  "price": 38000,
+  "am": [
+   "invoice",
+   "commute",
+   "furnished",
+   "cleaning",
+   "fibre",
+   "workspace",
+   "gym",
+   "amenities"
+  ],
+  "ex": [
+   "Company lease & tax invoice",
+   "Weekly cleaning"
+  ],
+  "hue": 240,
+  "line": "Serviced two-bed in Phuket Town, 15 minutes to the hospitals and business district.",
+  "photo": "/photos/interior-living.webp"
+ },
+ {
+  "id": "NHV",
+  "mode": "rent",
+  "name": "Nai Harn Pool Hideaway",
+  "area": "Nai Harn",
+  "type": "villa",
+  "beds": 1,
+  "sqm": 110,
+  "price": 42000,
+  "am": [
+   "pool",
+   "quiet",
+   "workspace",
+   "fibre",
+   "pets",
+   "furnished"
+  ],
+  "ex": [
+   "Pool & garden care",
+   "Fibre internet installed"
+  ],
+  "hue": 150,
+  "line": "One-bed pool villa behind the lake, built for two.",
+  "photo": "/photos/villa-garden.webp"
+ },
+ {
+  "id": "SAL",
+  "mode": "rent",
+  "name": "Villa Sala Lagoon",
+  "area": "Rawai",
+  "type": "villa",
+  "beds": 3,
+  "sqm": 220,
+  "price": 60000,
+  "am": [
+   "pool",
+   "quiet",
+   "workspace",
+   "furnished",
+   "pets",
+   "fibre"
+  ],
+  "ex": [
+   "Pool & garden care",
+   "Fibre internet installed"
+  ],
+  "hue": 170,
+  "line": "Garden pool villa on a quiet lane, ten minutes from Nai Harn.",
+  "photo": "/photos/villa-palms.webp"
+ },
+ {
+  "id": "KRD",
+  "mode": "rent",
+  "name": "Baan Kata Ridge",
+  "area": "Kata",
+  "type": "villa",
+  "beds": 4,
+  "sqm": 340,
+  "price": 118000,
+  "am": [
+   "pool",
+   "seaview",
+   "beach",
+   "furnished",
+   "amenities",
+   "cleaning"
+  ],
+  "ex": [
+   "Pool & garden care",
+   "Twice-weekly housekeeping"
+  ],
+  "hue": 195,
+  "line": "Hillside villa with an infinity pool over Kata Bay.",
+  "photo": "/photos/villa-sea.webp"
+ },
+ {
+  "id": "LGH",
+  "mode": "rent",
+  "name": "Laguna Grove House",
+  "area": "Bang Tao",
+  "type": "villa",
+  "beds": 4,
+  "sqm": 360,
+  "price": 128000,
+  "am": [
+   "pool",
+   "school",
+   "gym",
+   "furnished",
+   "pets",
+   "amenities",
+   "commute"
+  ],
+  "ex": [
+   "Pool & garden care",
+   "School-run driver on request"
+  ],
+  "hue": 130,
+  "line": "Family villa by the Laguna lakes, eight minutes from the international schools.",
+  "photo": "/photos/villa-hills.webp"
+ },
+ {
+  "id": "BTT",
+  "mode": "rent",
+  "name": "Bang Tao Townhouse 7",
+  "area": "Bang Tao",
+  "type": "townhouse",
+  "beds": 3,
+  "sqm": 160,
+  "price": 52000,
+  "am": [
+   "pool",
+   "school",
+   "pets",
+   "commute",
+   "furnished",
+   "quiet"
+  ],
+  "ex": [
+   "Shared pool upkeep",
+   "Pet deposit waived"
+  ],
+  "hue": 110,
+  "line": "Gated three-bed townhouse with a shared pool, close to schools and the airport road.",
+  "photo": "/photos/town-terrace.webp"
+ },
+ {
+  "id": "KMC",
+  "mode": "rent",
+  "name": "Kamala Bay Residence 3B",
+  "area": "Kamala",
+  "type": "condo",
+  "beds": 2,
+  "sqm": 98,
+  "price": 31000,
+  "am": [
+   "seaview",
+   "gym",
+   "furnished",
+   "amenities",
+   "beach",
+   "workspace",
+   "fibre"
+  ],
+  "ex": [
+   "Building pool & gym",
+   "Water and wifi included"
+  ],
+  "hue": 205,
+  "line": "Top-floor sea-view two-bed a short walk from Kamala beach.",
+  "photo": "/photos/interior-daybed.webp"
+ },
+ {
+  "id": "KMV",
+  "mode": "rent",
+  "name": "Kamala Shared Pool Villa",
+  "area": "Kamala",
+  "type": "villa",
+  "beds": 4,
+  "sqm": 300,
+  "price": 88000,
+  "am": [
+   "pool",
+   "fibre",
+   "amenities",
+   "beach",
+   "cleaning",
+   "furnished"
+  ],
+  "ex": [
+   "Weekly cleaning",
+   "Fibre internet installed"
+  ],
+  "hue": 260,
+  "line": "Four equal en-suite bedrooms around a big pool. Built for sharing.",
+  "photo": "/photos/villa-loungers.webp"
+ },
+ {
+  "id": "SRP",
+  "mode": "rent",
+  "name": "The Surin Pavilion",
+  "area": "Surin",
+  "type": "villa",
+  "beds": 3,
+  "sqm": 280,
+  "price": 92000,
+  "am": [
+   "pool",
+   "seaview",
+   "beach",
+   "furnished",
+   "quiet",
+   "cleaning"
+  ],
+  "ex": [
+   "Pool & garden care",
+   "Weekly housekeeping"
+  ],
+  "hue": 25,
+  "line": "Tropical-modern pavilion three minutes from Surin Beach.",
+  "photo": "/photos/life-bang-tao.webp"
+ },
+ {
+  "id": "CYP",
+  "mode": "buy",
+  "name": "Cape Yamu Point",
+  "area": "Cape Yamu",
+  "type": "villa",
+  "beds": 5,
+  "sqm": 600,
+  "price": 56500000,
+  "own": "Leasehold 30 + 30 years",
+  "rent": 290000,
+  "am": [
+   "pool",
+   "seaview",
+   "quiet",
+   "gym"
+  ],
+  "ex": [
+   "Legal due-diligence referral",
+   "Rental management available"
+  ],
+  "hue": 220,
+  "line": "Headland estate facing Phang Nga Bay, fully staffed.",
+  "photo": "/photos/villa-bay.webp"
+ },
+ {
+  "id": "AMY",
+  "mode": "buy",
+  "name": "Villa Amaya",
+  "area": "Kamala",
+  "type": "villa",
+  "beds": 4,
+  "sqm": 420,
+  "price": 32500000,
+  "own": "Leasehold 30 + 30 years",
+  "rent": 180000,
+  "am": [
+   "pool",
+   "seaview",
+   "furnished",
+   "gym"
+  ],
+  "ex": [
+   "Furniture package included",
+   "Rental management available"
+  ],
+  "hue": 205,
+  "line": "Four ocean-view suites and a 15 m pool above Kamala Bay.",
+  "photo": "/photos/villa-loungers.webp"
+ },
+ {
+  "id": "BTL",
+  "mode": "buy",
+  "name": "Bang Tao Lagoon Villa",
+  "area": "Bang Tao",
+  "type": "villa",
+  "beds": 3,
+  "sqm": 300,
+  "price": 25200000,
+  "own": "Leasehold or company freehold",
+  "rent": 140000,
+  "am": [
+   "pool",
+   "school",
+   "furnished",
+   "amenities"
+  ],
+  "ex": [
+   "Furniture package included",
+   "Legal due-diligence referral"
+  ],
+  "hue": 130,
+  "line": "Modern three-bed villa near Laguna and the international schools.",
+  "photo": "/photos/villa-garden.webp"
+ },
+ {
+  "id": "RGV",
+  "mode": "buy",
+  "name": "Rawai Garden Villa",
+  "area": "Rawai",
+  "type": "villa",
+  "beds": 3,
+  "sqm": 260,
+  "price": 14900000,
+  "own": "Leasehold 30 + 30 years",
+  "rent": 70000,
+  "am": [
+   "pool",
+   "quiet",
+   "pets",
+   "workspace"
+  ],
+  "ex": [
+   "Legal due-diligence referral"
+  ],
+  "hue": 170,
+  "line": "Private pool villa on a large garden plot in a quiet soi.",
+  "photo": "/photos/villa-palms.webp"
+ },
+ {
+  "id": "KSC",
+  "mode": "buy",
+  "name": "Kata Sea View Condo",
+  "area": "Kata",
+  "type": "condo",
+  "beds": 2,
+  "sqm": 95,
+  "price": 10400000,
+  "own": "Foreign freehold",
+  "rent": 55000,
+  "am": [
+   "seaview",
+   "beach",
+   "gym",
+   "furnished",
+   "amenities"
+  ],
+  "ex": [
+   "Furniture package included",
+   "Rental management available"
+  ],
+  "hue": 195,
+  "line": "Freehold two-bed with a wraparound sea-view terrace.",
+  "photo": "/photos/condo-tower.webp"
+ },
+ {
+  "id": "SBC",
+  "mode": "buy",
+  "name": "Surin Beach Condo",
+  "area": "Surin",
+  "type": "condo",
+  "beds": 1,
+  "sqm": 62,
+  "price": 8300000,
+  "own": "Foreign freehold",
+  "rent": 48000,
+  "am": [
+   "beach",
+   "seaview",
+   "gym",
+   "furnished"
+  ],
+  "ex": [
+   "Rental management available"
+  ],
+  "hue": 25,
+  "line": "One-bed freehold, a two-minute walk to Surin Beach.",
+  "photo": "/photos/interior-daybed.webp"
+ },
+ {
+  "id": "NHT2",
+  "mode": "buy",
+  "name": "Nai Harn Townhouse",
+  "area": "Nai Harn",
+  "type": "townhouse",
+  "beds": 3,
+  "sqm": 180,
+  "price": 8900000,
+  "own": "Freehold (Thai company) or leasehold",
+  "rent": 45000,
+  "am": [
+   "pool",
+   "school",
+   "pets",
+   "quiet"
+  ],
+  "ex": [
+   "Legal due-diligence referral"
+  ],
+  "hue": 150,
+  "line": "Gated three-bed townhouse with a shared pool near the lake.",
+  "photo": "/photos/town-house.webp"
+ }
+]

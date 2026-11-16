@@ -1,0 +1,225 @@
+/* Tailwind without preflight: the original page relies on browser default styles (p margins, buttons, etc.) */
+@layer theme, base, components, utilities;
+@import 'tailwindcss/theme.css' layer(theme);
+@import 'tailwindcss/utilities.css' layer(utilities);
+@source not "./demo";
+
+/* Elevare Property Partners: black ground, violet → pink → sky gradient from the mark */
+@theme {
+  --color-bg: #050409;
+  --color-surface: #110e18;
+  --color-surface-2: #1a1624;
+  --color-line: #2a2436;
+  --color-ink: #f5f2fa;
+  --color-muted: #a79fb6;
+  --color-faint: #857d98;
+  --color-violet: #7a3fe0;
+  --color-pink: #e05cb5;
+  --color-sky: #55b6f2;
+  --color-good: #6fd39a;
+  --color-wa: #25b864;
+  --color-wa-ink: #04160b;
+  --color-bar: #4a4258;
+  --color-lilac: #d9c7ff;
+
+  --font-wordmark: 'Cinzel', 'Trajan Pro', Georgia, serif;
+  --font-display: 'Cormorant Garamond', 'Cormorant', Georgia, serif;
+  --font-body: 'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace;
+
+  --animate-rise: rise 0.35s ease both;
+  @keyframes rise {
+    from {
+      opacity: 0.001;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}
+
+/* Same hover behaviour as the original (also applies on touch devices) */
+@custom-variant hover (&:hover);
+/* Exact breakpoints of the original page */
+@custom-variant upto480 (@media (max-width: 480px));
+@custom-variant upto520 (@media (max-width: 520px));
+@custom-variant upto560 (@media (max-width: 560px));
+@custom-variant upto600 (@media (max-width: 600px));
+@custom-variant upto759 (@media (max-width: 759px));
+@custom-variant from760 (@media (min-width: 760px));
+@custom-variant upto999 (@media (max-width: 999px));
+@custom-variant from1000 (@media (min-width: 1000px));
+
+@utility bg-grad {
+  background: var(--grad);
+}
+@utility grad-text {
+  background: var(--grad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+/* gradient hairline border (selected cards, brief playback) */
+@utility grad-border {
+  background:
+    linear-gradient(var(--color-surface-2), var(--color-surface-2)) padding-box,
+    var(--grad) border-box;
+  border-color: transparent;
+}
+@utility grad-border-surface {
+  background:
+    linear-gradient(var(--color-surface), var(--color-surface)) padding-box,
+    var(--grad) border-box;
+  border-color: transparent;
+}
+
+@layer base {
+  :root {
+    color-scheme: dark;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    --grad: linear-gradient(100deg, #7a3fe0 0%, #c04fd0 45%, #e05cb5 70%, #55b6f2 100%);
+  }
+  html {
+    scroll-padding-top: env(safe-area-inset-top, 0px);
+  }
+  * {
+    box-sizing: border-box;
+  }
+  [hidden] {
+    display: none !important;
+  }
+  html,
+  body {
+    background: var(--color-bg);
+  }
+  body {
+    margin: 0;
+    color: var(--color-ink);
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: 1.55;
+    padding-inline: 16px;
+    padding-block: 0 40px;
+    min-height: 100%;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    inset: -20% -10% auto -10%;
+    height: 70vh;
+    background:
+      radial-gradient(closest-side, rgba(122, 63, 224, 0.22), transparent 70%),
+      radial-gradient(closest-side at 80% 30%, rgba(85, 182, 242, 0.12), transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+  @media (max-width: 999px) {
+    body.has-live {
+      padding-block-end: 110px;
+    }
+  }
+  /* the homepage runs full-bleed; its sections set their own gutters */
+  body.is-landing {
+    padding-inline: 0;
+    padding-block-end: 0;
+    overflow-x: clip;
+  }
+  /* warm ivory bands: the same components, re-toned by redefining the colour tokens */
+  .paper {
+    --color-bg: #f4f1ec;
+    --color-surface: #ffffff;
+    --color-surface-2: #eee9e1;
+    --color-line: #ddd5ca;
+    --color-ink: #17131d;
+    --color-muted: #544d5e;
+    --color-faint: #6c6576;
+    --color-bar: #cfc6ba;
+    --color-lilac: #5b2bb5;
+    --color-good: #1f7a4a;
+    --color-pink: #b8358f;
+    color: var(--color-ink);
+    background: var(--color-bg);
+    color-scheme: light;
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+  img {
+    max-width: 100%;
+  }
+  /* Cormorant's old-style figures make "1" read as "I" */
+  h1,
+  h2,
+  .font-display {
+    font-variant-numeric: lining-nums;
+  }
+  h1,
+  h2 {
+    font-family: var(--font-display);
+    font-weight: 500;
+    text-wrap: balance;
+    margin: 0;
+    line-height: 1.05;
+    letter-spacing: -0.01em;
+  }
+  button,
+  input,
+  textarea {
+    font: inherit;
+    color: inherit;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-sky);
+    outline-offset: 2px;
+  }
+  input[type='date'],
+  input[type='text'] {
+    width: 100%;
+    border: 1px solid var(--color-line);
+    border-radius: 10px;
+    padding: 10px 12px;
+    background: var(--color-surface-2);
+  }
+  input[type='range'] {
+    width: 100%;
+    accent-color: var(--color-pink);
+  }
+}
+
+/* home sections rise into view once (Landing.tsx sets data-in) */
+@layer components {
+  [data-reveal] {
+    opacity: 0;
+    transform: translateY(28px);
+    transition:
+      opacity 0.9s ease,
+      transform 0.9s cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+  [data-reveal][data-in] {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-reveal] {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* admin pages: full-width app layout */
+@layer base {
+  body.is-admin {
+    padding-inline: 0;
+    padding-block-end: 0;
+  }
+}

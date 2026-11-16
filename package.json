@@ -1,31 +1,16 @@
 {
-  "name": "elevare-concierge",
+  "name": "elevare",
   "private": true,
-  "version": "0.0.0",
-  "type": "module",
+  "description": "Elevare Property Partners: website (elevare-frontend) and API (backend) served together on one domain",
   "scripts": {
-    "dev": "vite",
-    "lint": "eslint src && tsc",
-    "build": "vite build",
-    "start": "vite preview"
+    "install:all": "npm ci --prefix backend && npm ci --prefix elevare-frontend",
+    "build": "npm run build --prefix elevare-frontend && npm run build --prefix backend",
+    "start": "npm start --prefix backend",
+    "create-admin": "npm run create-admin --prefix backend --",
+    "pm2:start": "pm2 start ecosystem.config.cjs && pm2 save",
+    "pm2:reload": "pm2 reload ecosystem.config.cjs"
   },
-  "dependencies": {
-    "react": "^19.2.4",
-    "react-dom": "^19.2.4"
-  },
-  "devDependencies": {
-    "@eslint/js": "^9.39.2",
-    "@tailwindcss/vite": "^4.3.3",
-    "@types/react": "^19.2.13",
-    "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^5.1.3",
-    "eslint": "^9.39.2",
-    "eslint-plugin-react-hooks": "^7.0.1",
-    "globals": "^17.3.0",
-    "tailwindcss": "^4.3.3",
-    "typescript": "^5.9.3",
-    "typescript-eslint": "^8.54.0",
-    "vite": "^7.3.1",
-    "vite-plugin-pretty-css-modules": "^1.1.0"
+  "engines": {
+    "node": ">=22.13"
   }
 }
