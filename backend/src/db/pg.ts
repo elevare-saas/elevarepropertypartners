@@ -69,6 +69,19 @@ export const ADMIN_COLS = `id, email, role, name, active, created_at as "created
 export const LISTING_COLS = `id, seq, mode, name, area, type, beds, sqm, price, own, rent, am, ex, hue, line, photo,
   published, created_at as "createdAt", updated_at as "updatedAt", updated_by as "updatedBy"`;
 
+/* a plain explanation for the connection errors that waiting can't fix (wrong password, user, host…) */
+export function explainDbError(e: unknown): string | undefined {
+  const {code, message = ''} = e as {code?: string; message?: string};
+  const fix = 'Update DATABASE_URL in backend/.env (and in Vercel: npm run vercel:db).';
+  if (code === '28P01' || /password authentication failed/i.test(message))
+    return `The database rejected the password. ${fix}`;
+  if (code === '28000' || /tenant\/user .* not found|role .* does not exist/i.test(message))
+    return `The database user or project in DATABASE_URL is wrong (it should be postgres.<project-ref>). ${fix}`;
+  if (code === '3D000') return `The database name in DATABASE_URL doesn't exist (Supabase uses "postgres"). ${fix}`;
+  if (code === 'ENOTFOUND') return `The database host in DATABASE_URL can't be found. ${fix}`;
+  return undefined;
+}
+
 /* retries so the API can start alongside the database; a serverless function only has seconds */
 const RETRIES = process.env.VERCEL ? 2 : 5;
 const wait = (ms: number) => new Promise(r => setTimeout(r, ms));
@@ -79,8 +92,10 @@ export async function connectDb({autoMigrate = false} = {}) {
       await pool.query('select 1');
       break;
     } catch (e) {
+      const plain = explainDbError(e);
+      if (plain) throw new Error(plain, {cause: e});
       if (attempt === RETRIES)
-        throw new Error(`${(e as Error).message}. Check DATABASE_URL (Supabase transaction pooler).`, {cause: e});
+        throw new Error(`Database unreachable: ${(e as Error).message || (e as {code?: string}).code}`, {cause: e});
       log.warn(`Database not reachable (attempt ${attempt}/${RETRIES}), retrying in ${attempt * 2}s…`);
       await wait(attempt * 2_000);
     }

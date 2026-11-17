@@ -8,7 +8,8 @@
     "start": "npm start --prefix backend",
     "create-admin": "npm run create-admin --prefix backend --",
     "pm2:start": "pm2 start ecosystem.config.cjs && pm2 save",
-    "pm2:reload": "pm2 reload ecosystem.config.cjs"
+    "pm2:reload": "pm2 reload ecosystem.config.cjs",
+    "vercel:db": "node deploy/vercel-db.mjs"
   },
   "engines": {
     "node": ">=22.13"

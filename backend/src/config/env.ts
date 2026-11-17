@@ -9,11 +9,6 @@ const raw = (name: string) => process.env[name]?.trim() ?? '';
 function str(name: string, fallback = '') {
   return raw(name) || fallback;
 }
-function required(name: string) {
-  const v = raw(name);
-  if (!v) problems.push(`${name} is required.`);
-  return v;
-}
 function int(name: string, fallback: number, min = 0) {
   const v = raw(name);
   if (!v) return fallback;
@@ -55,6 +50,36 @@ function optionalUrl(name: string) {
   if (v && !/^https?:\/\/[^\s]+$/.test(v)) problems.push(`${name} must be a full http(s) URL (got "${v}").`);
   return v;
 }
+/* DATABASE_URL: a Postgres address. Catches the usual copy-paste mistakes with a message that says what to use instead */
+function databaseUrl() {
+  const v = raw('DATABASE_URL');
+  const hint = 'Use Supabase → project → Connect → Transaction pooler (port 6543).';
+  if (!v) {
+    problems.push(`DATABASE_URL is required. ${hint}`);
+    return '';
+  }
+  let u: URL;
+  try {
+    u = new URL(v);
+  } catch {
+    problems.push(
+      `DATABASE_URL is not a valid address. If the password contains @ : / # ? or %, reset it to one without them. ${hint}`
+    );
+    return v;
+  }
+  if (!/^postgres(ql)?:$/.test(u.protocol))
+    problems.push(`DATABASE_URL must start with postgresql:// (got "${u.protocol}//"). ${hint}`);
+  else if (/^db\.[a-z0-9]+\.supabase\.co$/.test(u.hostname))
+    problems.push(
+      `DATABASE_URL uses Supabase's direct address (${u.hostname}), which only works over IPv6 and can't be reached from ` +
+        `most networks or from Vercel. ${hint}`
+    );
+  else if (!u.password) problems.push(`DATABASE_URL has no password. ${hint}`);
+  else if (/YOUR-PASSWORD/i.test(u.password))
+    problems.push('DATABASE_URL still contains the [YOUR-PASSWORD] placeholder: put the database password there.');
+  return v;
+}
+
 const list = (name: string) =>
   raw(name)
     .split(',')
@@ -116,7 +141,7 @@ export const env = {
 
   /* Postgres (Supabase): the transaction pooler address, postgresql://postgres.<ref>:<password>@…pooler.supabase.com:6543/postgres */
   db: {
-    url: required('DATABASE_URL'),
+    url: databaseUrl(),
     /* small on serverless: each warm function instance keeps its own pool */
     poolMax: int('DATABASE_POOL_MAX', process.env.VERCEL ? 3 : 10, 1)
   },

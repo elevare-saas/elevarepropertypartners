@@ -57,6 +57,15 @@ The website's HTML is read once at start-up, so reload after every website build
 Hosts that terminate HTTPS themselves (Render, Railway, a cloud load balancer): run `npm run build` then
 `npm start`, point the host at `PORT`, and keep `TRUST_PROXY=1`.
 
+## Changing the database password or address
+
+1. Supabase → project → **Project Settings → Database → Reset database password** (copy it before confirming).
+2. Put it in `backend/.env`: `DATABASE_URL=postgresql://postgres.<project-ref>:<new password>@…pooler.supabase.com:6543/postgres`.
+3. `npm run vercel:db`: tests the new value, saves it in Vercel (never printed), redeploys the live site and checks it.
+
+A wrong value never reaches Vercel: the command stops if the database rejects it. Locally the server says exactly what is
+wrong (password rejected, wrong project id, Supabase's IPv6-only direct address, placeholder left in).
+
 ## Backups
 
 The database is on Supabase (daily backups on Pro). Keep `backend/uploads/` if photos are stored on the server.
