@@ -47,8 +47,9 @@ try {
 }
 
 /* 2. save it in Vercel; the value goes through stdin, never onto the screen or the command line */
+/* the arguments are fixed words (no user input), so one command line is safe; Windows needs the shell for vercel.cmd */
 const vercel = (args, input) => {
-  const r = spawnSync('vercel', args, {cwd: ROOT, input, encoding: 'utf8', shell: process.platform === 'win32'});
+  const r = spawnSync(['vercel', ...args].join(' '), {cwd: ROOT, input, encoding: 'utf8', shell: true});
   return {ok: r.status === 0, out: `${r.stdout ?? ''}${r.stderr ?? ''}`};
 };
 for (const target of ['production', 'preview']) {
