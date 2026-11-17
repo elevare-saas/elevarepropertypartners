@@ -102,6 +102,7 @@ const describe = (l: Listing) =>
 /* one property's tags (the backend writes the same ones for crawlers) */
 export function listingSeo(l: Listing): Seo {
   const url = abs(listingPath(l));
+  /* the property photo, for search engines' listing data; link previews keep the Elevare image */
   const image = l.photo
     ? l.photo.startsWith('/uploads/')
       ? assetUrl(l.photo)
@@ -112,7 +113,6 @@ export function listingSeo(l: Listing): Seo {
     title: `${l.name}: ${describe(l)} | ${BRAND}`,
     description: `${describe(l)}. ${l.sqm} m², ${price}. ${l.line}`.slice(0, 300),
     path: listingPath(l),
-    image,
     jsonLd: [
       {
         '@context': 'https://schema.org',

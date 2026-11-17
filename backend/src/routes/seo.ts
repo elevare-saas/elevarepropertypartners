@@ -127,7 +127,7 @@ async function pageFor(path: string): Promise<Page | null> {
     title: `${l.name}: ${what} | ${BRAND}`,
     description: `${what}. ${l.sqm} m², ${priceText(l)}. ${l.line}`.slice(0, 300),
     path: listingPath(l),
-    image: l.photo ? photoUrl(l.photo) : undefined,
+    /* link previews always show the Elevare image (the property photo stays in the page and its JSON-LD) */
     jsonLd: [
       listingJsonLd(l),
       breadcrumbs([
