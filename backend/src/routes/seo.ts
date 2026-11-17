@@ -75,7 +75,7 @@ function listingJsonLd(l: ListingRow) {
     name: l.name,
     url,
     description: l.line,
-    image: l.photo ? photoUrl(l.photo) : abs('/photos/hero.webp'),
+    image: l.photo ? photoUrl(l.photo) : abs('/og/elevare-og.jpg'),
     datePosted: l.createdAt.toISOString(),
     offers: {
       '@type': 'Offer',
@@ -141,7 +141,7 @@ async function pageFor(path: string): Promise<Page | null> {
 
 function headHtml(p: Page) {
   const url = esc(abs(p.path));
-  const image = esc(p.image ?? abs('/photos/hero.webp'));
+  const image = esc(p.image ?? abs('/og/elevare-og.jpg'));
   return [
     `<title>${esc(p.title)}</title>`,
     `<meta name="description" content="${esc(p.description)}" />`,
@@ -159,6 +159,7 @@ function headHtml(p: Page) {
     `<meta property="og:description" content="${esc(p.description)}" />`,
     `<meta property="og:url" content="${url}" />`,
     `<meta property="og:image" content="${image}" />`,
+    `<meta name="twitter:image" content="${image}" />`,
     `<meta name="twitter:card" content="summary_large_image" />`,
     ...(p.jsonLd ?? []).map(
       j => `<script type="application/ld+json">${JSON.stringify(j).replace(/</g, '\\u003c')}</script>`

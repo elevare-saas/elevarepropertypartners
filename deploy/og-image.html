@@ -1,0 +1,99 @@
+<!doctype html>
+<!-- Source of elevare-frontend/public/og/elevare-og.jpg (the link-preview image, 1200x630).
+     To change it: replace MARK / PHOTO1 / PHOTO2 with file:/// paths to src/assets/elevare-mark.png and two
+     public/photos images, open in Chrome at 1200x630, screenshot as JPEG (keep it under 300 KB for WhatsApp). -->
+<html>
+<head>
+<meta charset="utf-8" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #050409; --surface: #110e18; --surface2: #1a1624; --line: #2a2436; --ink: #f5f2fa; --muted: #a79fb6;
+    --violet: #7a3fe0; --pink: #e05cb5; --sky: #55b6f2; --wa: #25b864;
+    --grad: linear-gradient(100deg, #7a3fe0 0%, #c04fd0 45%, #e05cb5 70%, #55b6f2 100%);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1200px; height: 630px; overflow: hidden; }
+  body {
+    background:
+      radial-gradient(520px 380px at 88% 18%, rgba(122, 63, 224, .38), transparent 70%),
+      radial-gradient(460px 360px at 70% 105%, rgba(224, 92, 181, .30), transparent 70%),
+      radial-gradient(420px 300px at -5% 110%, rgba(85, 182, 242, .16), transparent 70%),
+      var(--bg);
+    color: var(--ink); font-family: Manrope, system-ui, sans-serif; position: relative;
+  }
+  .frame { position: absolute; inset: 0; border: 1px solid rgba(255,255,255,.06); }
+  .left { position: absolute; left: 64px; top: 56px; width: 640px; }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .brand img { width: 54px; }
+  .wordmark b { display: block; font-family: Cinzel, serif; font-weight: 500; font-size: 27px; letter-spacing: .16em; line-height: 1; }
+  .wordmark small { display: block; font-size: 10.5px; letter-spacing: .34em; color: var(--muted); margin-top: 7px; }
+  .kicker { margin-top: 46px; font-size: 14px; letter-spacing: .26em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  h1 { margin-top: 14px; font-family: 'Cormorant Garamond', serif; font-weight: 600; font-size: 66px; line-height: 1.0; letter-spacing: -.005em; }
+  h1 em { font-style: italic; background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; padding-right: 6px; }
+  .steps { margin-top: 38px; display: grid; gap: 12px; }
+  .step { display: flex; align-items: center; gap: 14px; font-size: 20px; font-weight: 600; }
+  .num { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; font-size: 16px; font-weight: 800; background: var(--grad); color: #fff; flex: none; }
+  .step.wa .num { background: var(--wa); color: #04160b; }
+  .step span.dim { color: var(--muted); font-weight: 500; }
+
+  /* phone */
+  .phone {
+    position: absolute; right: 70px; top: 58px; width: 330px; height: 560px; border-radius: 40px;
+    background: #0d0a14; border: 1px solid #2f2840; padding: 12px;
+    box-shadow: 0 40px 90px rgba(0,0,0,.6), 0 0 0 6px rgba(255,255,255,.03);
+    transform: rotate(3deg);
+  }
+  .screen { width: 100%; height: 100%; border-radius: 30px; overflow: hidden; background: var(--surface); display: flex; flex-direction: column; }
+  .bar { padding: 18px 18px 10px; display: flex; justify-content: space-between; align-items: baseline; }
+  .bar b { font-family: 'Cormorant Garamond', serif; font-size: 25px; font-weight: 600; }
+  .bar small { font-size: 12px; color: var(--muted); }
+  .card { margin: 0 14px 10px; border-radius: 16px; overflow: hidden; background: var(--surface2); border: 1px solid var(--line); }
+  .card .ph { height: 92px; background-size: cover; background-position: center; position: relative; }
+  .badge { position: absolute; top: 8px; left: 8px; background: rgba(5,4,9,.78); color: #fff; border-radius: 99px; font-size: 11px; font-weight: 800; padding: 4px 9px; }
+  .badge.good { left: auto; right: 8px; color: #6fd39a; }
+  .card .info { padding: 9px 12px 11px; display: flex; justify-content: space-between; align-items: baseline; }
+  .card .info b { font-size: 13.5px; font-weight: 700; }
+  .card .info span { font-size: 13px; font-weight: 700; color: var(--ink); font-family: ui-monospace, Menlo, monospace; }
+  .wa-chat { margin-top: auto; background: #0b141a; padding: 12px 12px 16px; border-top: 1px solid #1f2c34; }
+  .wa-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .wa-dot { width: 26px; height: 26px; border-radius: 50%; background: var(--grad); display: grid; place-items: center; font-size: 12px; font-weight: 800; color: #fff; }
+  .wa-head b { font-size: 12.5px; color: #e9edef; }
+  .wa-head small { display: block; font-size: 10.5px; color: #25d366; font-weight: 600; }
+  .bubble { font-size: 12.5px; line-height: 1.35; padding: 8px 10px; border-radius: 12px; max-width: 88%; color: #e9edef; }
+  .out { background: #005c4b; margin-left: auto; border-top-right-radius: 4px; }
+  .in { background: #202c33; margin-top: 7px; border-top-left-radius: 4px; }
+  .tick { color: #53bdeb; font-size: 11px; margin-left: 4px; }
+</style>
+</head>
+<body>
+  <div class="frame"></div>
+  <div class="left">
+    <div class="brand">
+      <img src="MARK" alt="" />
+      <div class="wordmark"><b>ELEVARE</b><small>PROPERTY PARTNERS</small></div>
+    </div>
+    <div class="kicker">Property concierge · Phuket</div>
+    <h1>Verified homes,<br /><em>matched to you.</em></h1>
+    <div class="steps">
+      <div class="step"><span class="num">1</span>Tell us how you live <span class="dim">· 60 seconds</span></div>
+      <div class="step"><span class="num">2</span>See matches priced against the market</div>
+      <div class="step wa"><span class="num">3</span>Your viewing, arranged on WhatsApp</div>
+    </div>
+  </div>
+
+  <div class="phone"><div class="screen">
+    <div class="bar"><b>Your matches</b><small>3 of 15 homes</small></div>
+    <div class="card"><div class="ph" style="background-image:url(PHOTO1)"><span class="badge">96% match</span><span class="badge good">8% below market</span></div>
+      <div class="info"><b>Pool villa · 3 bed</b><span>฿92k/mo</span></div></div>
+    <div class="card"><div class="ph" style="background-image:url(PHOTO2)"><span class="badge">91% match</span></div>
+      <div class="info"><b>Sea-view condo · 2 bed</b><span>฿48k/mo</span></div></div>
+    <div class="wa-chat">
+      <div class="wa-head"><span class="wa-dot">E</span><div><b>Elevare advisor</b><small>online</small></div></div>
+      <div class="bubble out">Hi Elevare 👋 Can I view the pool villa this Saturday?<span class="tick">✓✓</span></div>
+      <div class="bubble in">Yes! Saturday 10:00 is confirmed. See you there 🏡</div>
+    </div>
+  </div></div>
+</body>
+</html>

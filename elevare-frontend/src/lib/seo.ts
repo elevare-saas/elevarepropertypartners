@@ -69,7 +69,8 @@ export function applySeo({title, description, path, image, noindex, jsonLd = []}
   meta('property', 'og:title', title);
   meta('property', 'og:description', description);
   meta('property', 'og:url', url);
-  meta('property', 'og:image', image ?? abs('/photos/hero.webp'));
+  meta('property', 'og:image', image ?? abs('/og/elevare-og.jpg'));
+  meta('name', 'twitter:image', image ?? abs('/og/elevare-og.jpg'));
 
   document.head.querySelectorAll('script[type="application/ld+json"]:not([data-site])').forEach(s => s.remove());
   for (const data of jsonLd) {
@@ -105,7 +106,7 @@ export function listingSeo(l: Listing): Seo {
     ? l.photo.startsWith('/uploads/')
       ? assetUrl(l.photo)
       : abs(l.photo)
-    : abs('/photos/hero.webp');
+    : abs('/og/elevare-og.jpg');
   const price = thb(l.price) + (l.mode === 'rent' ? ' / month' : '');
   return {
     title: `${l.name}: ${describe(l)} | ${BRAND}`,

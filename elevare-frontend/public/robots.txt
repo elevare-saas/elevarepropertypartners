@@ -5,4 +5,4 @@ Disallow: /admin-login
 Disallow: /admin-dashboard
 Disallow: /api/
 
-Sitemap: https://www.elevarepropertypartners.com/sitemap.xml
+Sitemap: https://elevarepropertypartners.vercel.app/sitemap.xml
