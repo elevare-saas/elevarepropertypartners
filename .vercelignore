@@ -1,0 +1,10 @@
+# never upload local secrets, builds or dependencies with `vercel deploy` (Vercel builds from a clean checkout)
+.env
+**/.env
+.env.local
+**/.env.local
+node_modules
+**/node_modules
+**/dist
+backend/uploads
+*.log
