@@ -4,9 +4,6 @@
   "installCommand": "npm ci --prefix backend && npm ci --prefix elevare-frontend",
   "buildCommand": "npm run build --prefix elevare-frontend && npm run build --prefix backend",
   "outputDirectory": "elevare-frontend/dist",
-  "regions": [
-    "sin1"
-  ],
   "functions": {
     "api/index.mjs": {
       "includeFiles": "{backend/dist/**,elevare-frontend/dist/index.html}",
