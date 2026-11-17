@@ -50,5 +50,13 @@ export default async function handler(req, res) {
   } catch (e) {
     return notReady(req, res, e.message);
   }
+  /* Vercel's request helpers pre-fill req.cookies; cookie-parser then skips itself entirely, so there are no signed
+     cookies and sign-in fails ("cookieParser(secret) required"). Clear it so the app parses cookies itself.
+     (NODEJS_HELPERS=0 in Vercel turns the helpers off too.) */
+  try {
+    Object.defineProperty(req, 'cookies', {value: undefined, writable: true, configurable: true, enumerable: true});
+  } catch {
+    /* not configurable: helpers are off, nothing to clear */
+  }
   return app(req, res);
 }
