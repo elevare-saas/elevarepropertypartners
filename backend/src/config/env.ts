@@ -114,10 +114,11 @@ export const env = {
   trustProxy: str('TRUST_PROXY', 'loopback'),
   logLevel: oneOf('LOG_LEVEL', ['error', 'warn', 'info', 'debug'] as const, isProd ? 'info' : 'debug'),
 
-  mongo: {
-    uri: isProd ? required('MONGODB_URI') : str('MONGODB_URI', 'mongodb://127.0.0.1:27017'),
-    db: str('MONGODB_DB', 'elevare'),
-    poolMax: int('MONGODB_POOL_MAX', 10, 1)
+  /* Postgres (Supabase): the transaction pooler address, postgresql://postgres.<ref>:<password>@…pooler.supabase.com:6543/postgres */
+  db: {
+    url: required('DATABASE_URL'),
+    /* small on serverless: each warm function instance keeps its own pool */
+    poolMax: int('DATABASE_POOL_MAX', process.env.VERCEL ? 3 : 10, 1)
   },
 
   frontendUrl,

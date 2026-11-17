@@ -12,7 +12,7 @@ One domain, one Node process:
 `backend` serves `../elevare-frontend/dist` automatically once it has been built (set `FRONTEND_DIST=off` to host the
 website elsewhere). The website calls the API on the same domain (`VITE_API_URL` stays empty).
 
-## Deploy (Linux server, Node 22.13+, MongoDB, nginx)
+## Deploy (Linux server, Node 22.13+, nginx; database on Supabase)
 
 ```sh
 # 1. code and dependencies
@@ -20,7 +20,7 @@ git clone … elevare && cd elevare
 npm run install:all
 
 # 2. settings
-cp backend/.env.production.example backend/.env      # fill in SESSION_SECRET, domain, MongoDB, leads
+cp backend/.env.production.example backend/.env      # fill in SESSION_SECRET, domain, DATABASE_URL, leads
 cp elevare-frontend/.env.example elevare-frontend/.env
 #   VITE_WHATSAPP_NUMBER=447745334883 (required), VITE_GA_MEASUREMENT_ID=G-… (optional)
 
@@ -42,7 +42,7 @@ sudo certbot --nginx -d elevarepropertypartners.com -d www.elevarepropertypartne
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
-Check: `curl https://www.elevarepropertypartners.com/api/health` → `{"ok":true,"mongodb":"up"}`.
+Check: `curl https://www.elevarepropertypartners.com/api/health` → `{"ok":true,"database":"up"}`.
 
 ## Update
 
@@ -59,6 +59,6 @@ Hosts that terminate HTTPS themselves (Render, Railway, a cloud load balancer): 
 
 ## Backups
 
-MongoDB (`mongodump --db elevare`) and `backend/uploads/`.
+The database is on Supabase (daily backups on Pro). Keep `backend/uploads/` if photos are stored on the server.
 
 Details: [backend/README.md](backend/README.md), [elevare-frontend/README.md](elevare-frontend/README.md).

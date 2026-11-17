@@ -1,18 +1,18 @@
 import {mkdirSync} from 'node:fs';
 import {env} from './config/env.js';
-import {closeMongo, connectMongo} from './db/mongo.js';
+import {closeDb, connectDb} from './db/pg.js';
 import {ensureFirstAdmin, seedListings} from './db/seed.js';
 import {log} from './lib/logger.js';
 import {verifyMailer} from './lib/mailer.js';
 import {createApp} from './app.js';
 
-const closeAll = () => closeMongo().catch(() => {});
+const closeAll = () => closeDb().catch(() => {});
 
 async function main() {
   if (env.session.usingDevSecret) log.warn('SESSION_SECRET not set: using an insecure development secret.');
 
-  await connectMongo().catch(e => {
-    throw new Error(`Cannot connect to MongoDB: ${(e as Error).message}`);
+  await connectDb({autoMigrate: true}).catch(e => {
+    throw new Error(`Cannot connect to the database: ${(e as Error).message}`);
   });
 
   await seedListings();

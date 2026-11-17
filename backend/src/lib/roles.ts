@@ -1,4 +1,4 @@
-import type {AdminDoc} from '../db/mongo.js';
+import type {AdminRow} from '../db/pg.js';
 /* enforced here on every request; the dashboard only hides what a role can't use */
 const ROLES = ['super_admin', 'marketing_manager', 'viewer'] as const;
 export type Role = (typeof ROLES)[number];
@@ -26,8 +26,8 @@ export interface User {
   createdAt: Date | null;
   lastLoginAt: Date | null;
 }
-export const toUser = (d: Omit<AdminDoc, 'password'>): User => ({
-  id: d._id.toHexString(),
+export const toUser = (d: Omit<AdminRow, 'password'>): User => ({
+  id: d.id,
   email: d.email,
   name: d.name ?? '',
   role: d.role,

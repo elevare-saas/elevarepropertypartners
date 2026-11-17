@@ -3,7 +3,7 @@ import {randomBytes} from 'node:crypto';
 import {env} from '../config/env.js';
 import {log} from '../lib/logger.js';
 import {hashPassword} from '../lib/passwords.js';
-import {col, type ListingDoc} from './mongo.js';
+import {one, pool, query} from './pg.js';
 import seed from './seed-listings.json' with {type: 'json'};
 
 interface SeedListing {
@@ -24,62 +24,64 @@ interface SeedListing {
   photo: string | null;
 }
 
-/* first start only: the "listings" counter exists from then on, so deleting every listing doesn't bring the samples back */
+/* first start only: once app_meta has "listings_seeded", deleting every listing doesn't bring the samples back */
 export async function seedListings() {
-  if (await col.counters().findOne({_id: 'listings'})) return;
-  const now = new Date();
-  const docs: ListingDoc[] = (seed as SeedListing[]).map((l, i) => ({
-    _id: l.id,
-    seq: i + 1,
-    mode: l.mode as ListingDoc['mode'],
-    name: l.name,
-    area: l.area,
-    type: l.type,
-    beds: l.beds,
-    sqm: l.sqm,
-    price: l.price,
-    own: l.own ?? null,
-    rent: l.rent ?? null,
-    am: l.am,
-    ex: l.ex,
-    hue: l.hue,
-    line: l.line,
-    photo: l.photo,
-    published: true,
-    createdAt: now,
-    updatedAt: now,
-    updatedBy: 'seed'
-  }));
-  const existing = await col
-    .listings()
-    .find({}, {projection: {seq: 1}})
-    .sort({seq: -1})
-    .limit(1)
-    .next();
-  if (!existing) {
-    await col.listings().insertMany(docs);
-    log.info(`Seeded ${docs.length} sample listings.`);
+  if (await one(`select 1 from app_meta where key = 'listings_seeded'`)) return;
+  const client = await pool.connect();
+  try {
+    await client.query('begin');
+    const {rows} = await client.query<{n: string}>('select count(*) n from listings');
+    if (Number(rows[0].n) === 0) {
+      for (const l of seed as SeedListing[])
+        await client.query(
+          `insert into listings (id, mode, name, area, type, beds, sqm, price, own, rent, am, ex, hue, line, photo,
+                                 published, updated_by)
+           values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, true, 'seed')`,
+          [
+            l.id,
+            l.mode,
+            l.name,
+            l.area,
+            l.type,
+            l.beds,
+            l.sqm,
+            l.price,
+            l.own ?? null,
+            l.rent ?? null,
+            l.am,
+            l.ex,
+            l.hue,
+            l.line,
+            l.photo
+          ]
+        );
+      log.info(`Seeded ${(seed as SeedListing[]).length} sample listings.`);
+    }
+    await client.query(
+      `insert into app_meta (key, value) values ('listings_seeded', now()::text) on conflict do nothing`
+    );
+    await client.query('commit');
+  } catch (e) {
+    await client.query('rollback').catch(() => {});
+    throw e;
+  } finally {
+    client.release();
   }
-  await col.counters().updateOne({_id: 'listings'}, {$max: {seq: existing?.seq ?? docs.length}}, {upsert: true});
 }
 
 export async function ensureFirstAdmin() {
-  if ((await col.admins().estimatedDocumentCount()) > 0) {
-    if (!(await col.admins().findOne({lastLoginAt: {$ne: null}}, {projection: {_id: 1}})))
+  if (await one('select 1 from admins limit 1')) {
+    if (!(await one('select 1 from admins where last_login_at is not null limit 1')))
       log.warn('No admin has signed in yet. Lost the password? npm run create-admin -- <email> "<new-password>"');
     return;
   }
   const generated = !env.admin.password;
   const password = env.admin.password || randomBytes(9).toString('base64url');
-  await col.admins().insertOne({
-    email: env.admin.email,
-    name: 'Super Admin',
-    role: 'super_admin',
-    password: await hashPassword(password),
-    active: true,
-    createdAt: new Date(),
-    lastLoginAt: null
-  });
+  await query(
+    `insert into admins (email, name, role, password) values ($1, 'Super Admin', 'super_admin', $2)
+     on conflict (email) do nothing`,
+    [env.admin.email, await hashPassword(password)]
+  );
   log.warn(
     `Created the first Super Admin: ${env.admin.email}` +
       (generated

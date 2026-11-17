@@ -1,5 +1,5 @@
 /* create or reset a Super Admin:  npm run create-admin -- someone@example.com "a-long-password" */
-import {closeMongo, col, connectMongo} from '../db/mongo.js';
+import {closeDb, connectDb, one} from '../db/pg.js';
 import {hashPassword, passwordProblem} from '../lib/passwords.js';
 import {endAllSessions} from '../lib/sessions.js';
 
@@ -10,24 +10,21 @@ try {
   if (bad) throw new Error(bad);
   const email = rawEmail.trim().toLowerCase();
 
-  await connectMongo();
-  const r = await col.admins().findOneAndUpdate(
-    {email},
-    {
-      $set: {password: await hashPassword(password), role: 'super_admin', active: true},
-      $setOnInsert: {name: 'Super Admin', createdAt: new Date(), lastLoginAt: null}
-    },
-    {upsert: true, returnDocument: 'after', includeResultMetadata: true}
+  await connectDb();
+  /* xmax = 0 only for a freshly inserted row: tells "created" from "reset" */
+  const r = await one<{id: string; created: boolean}>(
+    `insert into admins (email, name, role, password) values ($1, 'Super Admin', 'super_admin', $2)
+     on conflict (email) do update set password = excluded.password, role = 'super_admin', active = true
+     returning id, (xmax = 0) as created`,
+    [email, await hashPassword(password)]
   );
-  await endAllSessions(r.value!._id.toHexString());
+  await endAllSessions(r!.id);
   console.log(
-    r.lastErrorObject?.updatedExisting
-      ? `Reset ${email}: now an active Super Admin with the new password.`
-      : `Created Super Admin ${email}.`
+    r!.created ? `Created Super Admin ${email}.` : `Reset ${email}: now an active Super Admin with the new password.`
   );
 } catch (e) {
   console.error((e as Error).message);
   process.exitCode = 1;
 } finally {
-  await closeMongo();
+  await closeDb();
 }

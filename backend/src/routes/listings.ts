@@ -3,7 +3,7 @@ import multer from 'multer';
 import {randomBytes} from 'node:crypto';
 import {extname} from 'node:path';
 import {env} from '../config/env.js';
-import {col, isDuplicateKey, nextSeq, type ListingDoc} from '../db/mongo.js';
+import {isUniqueViolation, LISTING_COLS, one, query, type ListingRow} from '../db/pg.js';
 import {requirePermission} from '../middleware/auth.js';
 import {canStorePhotos, deletePhoto, isValidPhoto, savePhoto} from '../lib/photoStore.js';
 
@@ -40,11 +40,11 @@ const AMENITIES = [
 ];
 const TYPES = ['villa', 'condo', 'townhouse'];
 
-type Row = ListingDoc;
+type Row = ListingRow;
 
 /* the shape the website uses (src/concierge/data.ts → Listing) */
 const toListing = (r: Row) => ({
-  id: r._id,
+  id: r.id,
   mode: r.mode,
   name: r.name,
   area: r.area,
@@ -67,7 +67,7 @@ const toAdmin = (r: Row) => ({
   updatedAt: r.updatedAt,
   updatedBy: r.updatedBy
 });
-const get = (id: string) => col.listings().findOne({_id: id});
+const get = (id: string) => one<Row>(`select ${LISTING_COLS} from listings where id = $1`, [id]);
 
 /* uploaded photos are deleted with their listing; bundled /photos/ ones stay */
 const removePhotos = (rows: Pick<Row, 'photo'>[]) => Promise.all(rows.map(r => deletePhoto(r.photo)));
@@ -131,15 +131,36 @@ function validate(b: Record<string, unknown>) {
   };
 }
 
+/* validated fields in the column order of the insert and update statements below */
+const values = (v: ReturnType<typeof validate>['value']) => [
+  v.mode,
+  v.name,
+  v.area,
+  v.type,
+  v.beds,
+  v.sqm,
+  v.price,
+  v.own,
+  v.rent,
+  v.am,
+  v.ex,
+  v.hue,
+  v.line,
+  v.photo,
+  v.published
+];
+
 /* ---------- public ---------- */
 export const publicListings = Router();
 publicListings.get('/', async (_req, res) => {
   /* "rent" before "buy", each in display order */
-  const rows = await col.listings().find({published: true}).sort({mode: -1, seq: 1}).toArray();
+  const {rows} = await query<Row>(`select ${LISTING_COLS} from listings where published order by mode desc, seq`);
   res.set('Cache-Control', 'no-cache').json({listings: rows.map(toListing)});
 });
 publicListings.get('/:id', async (req, res) => {
-  const row = await col.listings().findOne({_id: String(req.params.id), published: true});
+  const row = await one<Row>(`select ${LISTING_COLS} from listings where id = $1 and published`, [
+    String(req.params.id)
+  ]);
   if (!row) return res.status(404).json({error: 'This property is no longer available.'});
   res.set('Cache-Control', 'no-cache').json({listing: {...toListing(row), updatedAt: row.updatedAt}});
 });
@@ -148,33 +169,28 @@ publicListings.get('/:id', async (req, res) => {
 export const adminListings = Router();
 
 adminListings.get('/', requirePermission('listings.view'), async (_req, res) => {
-  const rows = await col.listings().find().sort({updatedAt: -1, seq: -1}).toArray();
+  const {rows} = await query<Row>(`select ${LISTING_COLS} from listings order by updated_at desc, seq desc`);
   res.json({listings: rows.map(toAdmin), areas: AREAS, amenities: AMENITIES});
 });
 
 adminListings.post('/', requirePermission('listings.edit'), async (req, res) => {
   const {errors, value: v} = validate(req.body ?? {});
   if (errors.length) return res.status(400).json({error: errors.join(' '), errors});
-  const now = new Date();
-  const doc: Row = {
-    _id: '',
-    seq: await nextSeq('listings'),
-    ...v,
-    createdAt: now,
-    updatedAt: now,
-    updatedBy: req.user!.email
-  };
-  /* random 8-character id; retried on the rare collision */
+  /* random 8-character id; retried on the rare collision. seq (display order) comes from a sequence */
   for (let attempt = 0; ; attempt++) {
-    doc._id = randomBytes(4).toString('hex').toUpperCase();
     try {
-      await col.listings().insertOne(doc);
-      break;
+      const row = await one<Row>(
+        `insert into listings (id, mode, name, area, type, beds, sqm, price, own, rent, am, ex, hue, line, photo,
+                               published, updated_by)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+         returning ${LISTING_COLS}`,
+        [randomBytes(4).toString('hex').toUpperCase(), ...values(v), req.user!.email]
+      );
+      return res.status(201).json({listing: toAdmin(row!)});
     } catch (e) {
-      if (!isDuplicateKey(e) || attempt === 4) throw e;
+      if (!isUniqueViolation(e) || attempt === 4) throw e;
     }
   }
-  res.status(201).json({listing: toAdmin(doc)});
 });
 
 adminListings.put('/:id', requirePermission('listings.edit'), async (req, res) => {
@@ -182,13 +198,14 @@ adminListings.put('/:id', requirePermission('listings.edit'), async (req, res) =
   if (!old) return res.status(404).json({error: 'Listing not found.'});
   const {errors, value: v} = validate(req.body ?? {});
   if (errors.length) return res.status(400).json({error: errors.join(' '), errors});
-  const row = await col
-    .listings()
-    .findOneAndUpdate(
-      {_id: old._id},
-      {$set: {...v, updatedAt: new Date(), updatedBy: req.user!.email}},
-      {returnDocument: 'after'}
-    );
+  const row = await one<Row>(
+    `update listings set mode = $2, name = $3, area = $4, type = $5, beds = $6, sqm = $7, price = $8, own = $9,
+            rent = $10, am = $11, ex = $12, hue = $13, line = $14, photo = $15, published = $16,
+            updated_by = $17, updated_at = now()
+      where id = $1
+      returning ${LISTING_COLS}`,
+    [old.id, ...values(v), req.user!.email]
+  );
   if (old.photo !== v.photo) await removePhotos([old]);
   res.json({listing: toAdmin(row!)});
 });
@@ -197,18 +214,17 @@ adminListings.patch('/:id/published', requirePermission('listings.edit'), async 
   const old = await get(String(req.params.id));
   if (!old) return res.status(404).json({error: 'Listing not found.'});
   const published = !!req.body?.published;
-  const row = await col
-    .listings()
-    .findOneAndUpdate(
-      {_id: old._id},
-      {$set: {published, updatedAt: new Date(), updatedBy: req.user!.email}},
-      {returnDocument: 'after'}
-    );
+  const row = await one<Row>(
+    `update listings set published = $2, updated_by = $3, updated_at = now() where id = $1 returning ${LISTING_COLS}`,
+    [old.id, published, req.user!.email]
+  );
   res.json({listing: toAdmin(row!)});
 });
 
 adminListings.delete('/:id', requirePermission('listings.edit'), async (req, res) => {
-  const old = await col.listings().findOneAndDelete({_id: String(req.params.id)});
+  const old = await one<Pick<Row, 'photo'>>('delete from listings where id = $1 returning photo', [
+    String(req.params.id)
+  ]);
   if (!old) return res.status(404).json({error: 'Listing not found.'});
   await removePhotos([old]);
   res.json({ok: true});
@@ -217,19 +233,13 @@ adminListings.delete('/:id', requirePermission('listings.edit'), async (req, res
 /* {ids: [...]} deletes those; {all: true} deletes every listing → {deleted} */
 adminListings.post('/delete', requirePermission('listings.edit'), async (req, res) => {
   const {ids, all} = req.body ?? {};
-  let filter: {_id?: {$in: string[]}};
-  if (all === true) filter = {};
+  let deleted;
+  if (all === true) deleted = await query<Pick<Row, 'photo'>>('delete from listings returning photo');
   else if (Array.isArray(ids) && ids.length && ids.length <= 1000 && ids.every(i => typeof i === 'string'))
-    filter = {_id: {$in: ids}};
+    deleted = await query<Pick<Row, 'photo'>>('delete from listings where id = any($1) returning photo', [ids]);
   else return res.status(400).json({error: 'Choose the properties to delete.'});
-
-  const rows = await col
-    .listings()
-    .find(filter, {projection: {photo: 1}})
-    .toArray();
-  const {deletedCount} = await col.listings().deleteMany({_id: {$in: rows.map(r => r._id)}});
-  await removePhotos(rows);
-  res.json({deleted: deletedCount});
+  await removePhotos(deleted.rows);
+  res.json({deleted: deleted.rowCount ?? deleted.rows.length});
 });
 
 /* photo upload: jpg/png/webp up to UPLOAD_MAX_MB → Vercel Blob or UPLOAD_DIR (lib/photoStore.ts) */

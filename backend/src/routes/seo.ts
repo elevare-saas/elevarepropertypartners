@@ -7,7 +7,7 @@ import express, {Router, type Request, type Response} from 'express';
 import {readFile} from 'node:fs/promises';
 import {join} from 'node:path';
 import {env} from '../config/env.js';
-import {col, type ListingDoc} from '../db/mongo.js';
+import {LISTING_COLS, one, query, type ListingRow} from '../db/pg.js';
 import {log} from '../lib/logger.js';
 
 const BRAND = 'Elevare Property Partners';
@@ -27,11 +27,12 @@ const slug = (s: string) =>
     .normalize('NFKD')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '');
-const listingPath = (l: Pick<ListingDoc, '_id' | 'name'>) => `/properties/${slug(l.name)}-${l._id}`;
+const listingPath = (l: Pick<ListingRow, 'id' | 'name'>) => `/properties/${slug(l.name)}-${l.id}`;
 const idFromPath = (path: string) => /^\/properties\/[a-z0-9-]*-([A-Za-z0-9]+)$/.exec(path)?.[1];
 const thb = (n: number) => '฿' + n.toLocaleString('en-US');
-const priceText = (l: ListingDoc) => thb(l.price) + (l.mode === 'rent' ? '/month' : '');
-const published = () => col.listings().find({published: true}).sort({mode: -1, seq: 1}).toArray();
+const priceText = (l: ListingRow) => thb(l.price) + (l.mode === 'rent' ? '/month' : '');
+const published = async () =>
+  (await query<ListingRow>(`select ${LISTING_COLS} from listings where published order by mode desc, seq`)).rows;
 
 /* ---------- sitemap ---------- */
 export const seoRouter = Router();
@@ -66,7 +67,7 @@ interface Page {
   body?: string;
 }
 
-function listingJsonLd(l: ListingDoc) {
+function listingJsonLd(l: ListingRow) {
   const url = abs(listingPath(l));
   return {
     '@context': 'https://schema.org',
@@ -102,7 +103,7 @@ const breadcrumbs = (items: [string, string][]) => ({
   itemListElement: items.map(([name, path], i) => ({'@type': 'ListItem', position: i + 1, name, item: abs(path)}))
 });
 
-const cardHtml = (l: ListingDoc) =>
+const cardHtml = (l: ListingRow) =>
   `<li><a href="${esc(listingPath(l))}">${esc(l.name)}</a> · ${esc(l.area)} · ${l.beds} bed ${esc(TYPE_LABEL[l.type] ?? l.type)} · ${l.sqm} m² · ${esc(priceText(l))}</li>`;
 
 async function pageFor(path: string): Promise<Page | null> {
@@ -111,7 +112,7 @@ async function pageFor(path: string): Promise<Page | null> {
     return {status: 200, title: `Admin · ${BRAND}`, description: '', path, noindex: true};
 
   const id = idFromPath(path);
-  const l = id ? await col.listings().findOne({_id: id, published: true}) : null;
+  const l = id ? await one<ListingRow>(`select ${LISTING_COLS} from listings where id = $1 and published`, [id]) : null;
   if (!l)
     return {
       status: 404,

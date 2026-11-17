@@ -1,6 +1,6 @@
-/* Super Admin only: manage the "admins" collection */
+/* Super Admin only: manage the "admins" table */
 import {Router} from 'express';
-import {col, isDuplicateKey, toObjectId, type AdminFields} from '../db/mongo.js';
+import {ADMIN_COLS, isUniqueViolation, isUuid, one, query, type AdminRow} from '../db/pg.js';
 import {requirePermission} from '../middleware/auth.js';
 import {hashPassword, passwordProblem} from '../lib/passwords.js';
 import {isRole, publicUser, toUser} from '../lib/roles.js';
@@ -10,17 +10,17 @@ import {normalizeEmail} from '../services/authService.js';
 export const usersRouter = Router();
 usersRouter.use(requirePermission('users.manage'));
 
+type Row = Omit<AdminRow, 'password'>;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const NO_PASSWORD = {projection: {password: 0}} as const;
 const get = async (id: unknown) => {
-  const _id = toObjectId(id);
-  const a = _id && (await col.admins().findOne({_id}, NO_PASSWORD));
+  const a = isUuid(id) ? await one<Row>(`select ${ADMIN_COLS} from admins where id = $1`, [id]) : undefined;
   return a ? toUser(a) : undefined;
 };
-const activeSuperAdmins = () => col.admins().countDocuments({role: 'super_admin', active: {$ne: false}});
+const activeSuperAdmins = async () =>
+  Number((await one<{n: string}>(`select count(*) n from admins where role = 'super_admin' and active`))?.n ?? 0);
 
 usersRouter.get('/', async (_req, res) => {
-  const rows = await col.admins().find({}, NO_PASSWORD).sort({createdAt: 1, _id: 1}).toArray();
+  const {rows} = await query<Row>(`select ${ADMIN_COLS} from admins order by created_at, id`);
   res.json({users: rows.map(a => publicUser(toUser(a)))});
 });
 
@@ -33,20 +33,13 @@ usersRouter.post('/', async (req, res) => {
   const bad = passwordProblem(password);
   if (bad) return res.status(400).json({error: bad});
   try {
-    const doc = {
-      email,
-      name,
-      role,
-      password: await hashPassword(password),
-      active: true,
-      createdAt: new Date(),
-      lastLoginAt: null
-    };
-    const {insertedId} = await col.admins().insertOne(doc);
-    const {password: _p, ...rest} = doc;
-    res.status(201).json({user: publicUser(toUser({_id: insertedId, ...rest}))});
+    const a = await one<Row>(
+      `insert into admins (email, name, role, password) values ($1, $2, $3, $4) returning ${ADMIN_COLS}`,
+      [email, name, role, await hashPassword(password)]
+    );
+    res.status(201).json({user: publicUser(toUser(a!))});
   } catch (e) {
-    if (isDuplicateKey(e)) return res.status(409).json({error: 'A user with this email already exists.'});
+    if (isUniqueViolation(e)) return res.status(409).json({error: 'A user with this email already exists.'});
     throw e;
   }
 });
@@ -68,14 +61,23 @@ usersRouter.patch('/:id', async (req, res) => {
   if (losesSuper && (await activeSuperAdmins()) <= 1)
     return res.status(400).json({error: 'There must be at least one active Super Admin.'});
 
-  const set: Partial<AdminFields> = {};
-  if (name !== undefined) set.name = String(name).trim();
-  if (role !== undefined) set.role = role;
-  if (active !== undefined) set.active = !!active;
-  if (password !== undefined) set.password = await hashPassword(password);
-  const updated = await col
-    .admins()
-    .findOneAndUpdate({_id: toObjectId(u.id)!}, {$set: set}, {returnDocument: 'after', ...NO_PASSWORD});
+  /* only the fields that were sent change: null keeps the current value */
+  const updated = await one<Row>(
+    `update admins set
+        name = coalesce($2, name),
+        role = coalesce($3, role),
+        active = coalesce($4, active),
+        password = coalesce($5, password)
+      where id = $1
+      returning ${ADMIN_COLS}`,
+    [
+      u.id,
+      name === undefined ? null : String(name).trim(),
+      role ?? null,
+      active === undefined ? null : !!active,
+      password === undefined ? null : await hashPassword(password)
+    ]
+  );
   if (active === false || (password !== undefined && !self)) await endAllSessions(u.id);
   res.json({user: publicUser(toUser(updated!))});
 });
@@ -86,7 +88,7 @@ usersRouter.delete('/:id', async (req, res) => {
   if (u.id === req.user!.id) return res.status(400).json({error: 'You cannot delete your own account.'});
   if (u.role === 'super_admin' && u.active && (await activeSuperAdmins()) <= 1)
     return res.status(400).json({error: 'There must be at least one active Super Admin.'});
-  await col.admins().deleteOne({_id: toObjectId(u.id)!});
-  await endAllSessions(u.id);
+  /* their sessions go with them (on delete cascade) */
+  await query('delete from admins where id = $1', [u.id]);
   res.json({ok: true});
 });
