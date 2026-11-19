@@ -77,10 +77,14 @@ export async function ensureFirstAdmin() {
   }
   const generated = !env.admin.password;
   const password = env.admin.password || randomBytes(9).toString('base64url');
-  await query(
-    `insert into admins (email, name, role, password) values ($1, 'Super Admin', 'super_admin', $2)
-     on conflict (email) do nothing`,
+  const row = await one<{id: string}>(
+    `insert into admins (email, name, password) values ($1, 'Super Admin', $2)
+     on conflict (email) do update set active = true returning id`,
     [env.admin.email, await hashPassword(password)]
+  );
+  await query(
+    'insert into admin_roles (admin_id, role_id) select $1, id from roles where system on conflict do nothing',
+    [row!.id]
   );
   log.warn(
     `Created the first Super Admin: ${env.admin.email}` +

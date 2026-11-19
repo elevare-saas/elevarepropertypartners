@@ -2,8 +2,8 @@
 import type {CookieOptions, Request, Response} from 'express';
 import {createHash, randomBytes} from 'node:crypto';
 import {env} from '../config/env.js';
-import {one, query, type AdminRow} from '../db/pg.js';
-import {isRole, toUser, type User} from './roles.js';
+import {one, query} from '../db/pg.js';
+import {adminSelect, toUser, type AdminWithRoles, type User} from './roles.js';
 
 const {cookieName, ttlDays, cookieDomain, cookieSecure, cookieSameSite} = env.session;
 const hashToken = (t: string) => createHash('sha256').update(t).digest('hex');
@@ -45,14 +45,14 @@ export async function endSession(req: Request, res: Response) {
 
 export const endAllSessions = (adminId: string) => query('delete from sessions where admin_id = $1', [adminId]);
 
-/* the active admin behind a token whose session hasn't expired */
+/* the active admin behind a token whose session hasn't expired, with their roles as they are right now */
 export async function sessionForToken(token: string): Promise<{user: User; expiresAt: Date} | undefined> {
-  const a = await one<Omit<AdminRow, 'password'> & {expiresAt: Date}>(
-    `select a.id, a.email, a.role, a.name, a.active, a.created_at as "createdAt", a.last_login_at as "lastLoginAt",
-            s.expires_at as "expiresAt"
-       from sessions s join admins a on a.id = s.admin_id
-      where s.token_hash = $1 and s.expires_at > now()`,
+  const a = await one<AdminWithRoles & {expiresAt: Date}>(
+    `${adminSelect(', s.expires_at as "expiresAt"')}
+       join sessions s on s.admin_id = a.id
+      where s.token_hash = $1 and s.expires_at > now()
+      group by a.id, s.expires_at`,
     [hashToken(token)]
   );
-  return a && a.active && isRole(a.role) ? {user: toUser(a), expiresAt: a.expiresAt} : undefined;
+  return a && a.active ? {user: toUser(a), expiresAt: a.expiresAt} : undefined;
 }

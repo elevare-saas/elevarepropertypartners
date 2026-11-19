@@ -10,7 +10,9 @@ sign-in and roles for the admin dashboard (`/admin-login`, `/admin-dashboard` in
 
 | Table | Rows |
 |---|---|
-| `admins` | dashboard accounts: `id` (uuid), `email` (lower-case, unique), `role`, `password` (bcrypt hash), `name`, `active`, `created_at`, `last_login_at` |
+| `admins` | dashboard accounts: `id` (uuid), `email` (lower-case, unique), `password` (bcrypt hash), `name`, `active`, `created_at`, `last_login_at` |
+| `roles` | `name`, `description`, `pages` (page keys), `system` (the one built-in Super Admin role) |
+| `admin_roles` | which employee has which roles (several allowed) |
 | `sessions` | one per sign-in: `token_hash` (SHA-256 of the cookie token), `admin_id`, `expires_at` (expired ones are cleared on sign-in) |
 | `listings` | the properties: `id` (listing id), `seq` (display order), the website's listing fields, `published`, `updated_by`… |
 | `leads` | website enquiries and viewing requests: `status` new / contacted / closed, the form fields in `data` (jsonb) |
@@ -48,7 +50,8 @@ src/
     auth.ts            /api/auth/login, logout, me, password
     listings.ts        /api/listings (public), /api/admin/listings (+ photo upload)
     leads.ts           /api/leads (public), /api/admin/leads
-    users.ts           /api/admin/users (Super Admin)
+    users.ts           /api/admin/users (Employees management page)
+    roles.ts           /api/admin/roles (read: Employees page; change: Super Admin)
   services/
     authService.ts     sign-in check: find the admin by email, compare the bcrypt hash, active + known role
   scripts/
@@ -89,16 +92,23 @@ plain-text password works once and is replaced by a bcrypt hash at that first si
 Employees management so no plain password is ever stored. An account with `active = false` or a role other than `super_admin` /
 `marketing_manager` / `viewer` cannot sign in.
 
-## Roles
+## Roles and page access
 
-| Role | Properties | Employees |
-|---|---|---|
-| Super Admin | view, add, edit, publish/hide, delete, upload photos; view and update leads | invite people, change roles, disable, reset passwords |
-| Marketing Manager | view, add, edit, publish/hide, delete, upload photos; view and update leads | – |
-| Viewer | view only (no leads: they hold visitors' personal details) | – |
+The CEO (any **Super Admin**) decides who can open which dashboard page, in the dashboard under
+**Employees management → Roles & access**:
 
-The role is stored on the user and checked by the server on every request (`PERMISSIONS` in `src/lib/roles.ts`).
-You can't remove your own Super Admin access, and there is always at least one active Super Admin.
+- **Roles** are created, renamed and deleted there; each role ticks the pages it can open (`PAGES` in
+  `src/lib/roles.ts`: Properties management, Employees management). Having a page means seeing it and working in it.
+- **An employee can have several roles** and gets every page any of them allows. With no role they only see Account
+  management, which is always available.
+- **Super Admin** is a built-in role: every page (including future ones), can't be edited or deleted. Only Super Admins
+  can change roles. There is always at least one active Super Admin, and you can't remove your own.
+- **Employees management can be delegated**, safely: someone given that page can't change Super Admin accounts or their
+  own roles, and can only hand out roles whose pages they have themselves.
+- Every request is checked by the server (`requirePage` in `src/middleware/auth.ts`), so changes apply on the next click.
+
+**Adding a page:** add it to `PAGES` in `src/lib/roles.ts`, guard its routes with `requirePage('<key>')`, and add it to
+the dashboard sidebar. It then appears in Roles & access, granted to no role until the CEO ticks it.
 
 ## API
 
@@ -109,13 +119,14 @@ You can't remove your own Super Admin access, and there is always at least one a
 | `POST /api/auth/logout` · `GET /api/auth/me` · `POST /api/auth/password` | signed in | |
 | `GET /api/listings` · `GET /api/listings/:id` | public | published listings, in the shape the website uses |
 | `GET /api/admin/listings` | all roles | every listing, including hidden ones |
-| `POST /api/admin/listings` · `PUT/DELETE /api/admin/listings/:id` · `PATCH …/:id/published` | Marketing, Super Admin | |
-| `POST /api/admin/listings/delete` `{ids}` or `{all: true}` | Marketing, Super Admin | bulk delete → `{deleted}` |
-| `POST /api/admin/listings/photo` (multipart `photo`) | Marketing, Super Admin | JPG/PNG/WebP ≤ 8 MB → `/uploads/…` |
+| `POST /api/admin/listings` · `PUT/DELETE /api/admin/listings/:id` · `PATCH …/:id/published` | Properties page | |
+| `POST /api/admin/listings/delete` `{ids}` or `{all: true}` | Properties page | bulk delete → `{deleted}` |
+| `POST /api/admin/listings/photo` (multipart `photo`) | Properties page | JPG/PNG/WebP ≤ 8 MB → `/uploads/…` |
 | `POST /api/leads` | public (rate-limited) | each lead → `leads`, an email to `LEADS_NOTIFY_EMAIL`, and `LEAD_WEBHOOK_URL` |
 | `GET /sitemap.xml` | public | home and every published property, with hreflang |
-| `GET /api/admin/leads?status=&limit=&before=` · `PATCH /api/admin/leads/:id` `{status}` | Marketing, Super Admin | status: new / contacted / closed |
-| `GET/POST /api/admin/users` · `PATCH/DELETE /api/admin/users/:id` | Super Admin | |
+| `GET /api/admin/leads?status=&limit=&before=` · `PATCH /api/admin/leads/:id` `{status}` | Super Admin (until a Leads page exists) | status: new / contacted / closed |
+| `GET/POST /api/admin/users` · `PATCH/DELETE /api/admin/users/:id` | Employees page | `{email, name, password, roleIds}` |
+| `GET /api/admin/roles` · `POST` · `PATCH/DELETE /api/admin/roles/:id` | read: Employees page; change: Super Admin | `{name, description, pages}` |
 
 The website shows only published listings from the database; with none in a category it says so instead of showing samples.
 

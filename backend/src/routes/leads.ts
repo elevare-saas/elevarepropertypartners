@@ -1,11 +1,11 @@
 /* Website leads → the "leads" table (form fields in a jsonb column).
    POST /api/leads            public: the concierge posts each enquiry / viewing request (CONFIG.leadEndpoint in the frontend)
-   GET  /api/admin/leads      staff with leads.view: newest first, ?status=new|contacted|closed &limit= &before=<ISO date>
-   PATCH /api/admin/leads/:id staff with leads.edit: {status} */
+   GET  /api/admin/leads      staff with the "leads" page (Super Admins until a Leads page exists): newest first, ?status=new|contacted|closed &limit= &before=<ISO date>
+   PATCH /api/admin/leads/:id same: {status} */
 import {Router} from 'express';
 import {env} from '../config/env.js';
 import {isUuid, one, query} from '../db/pg.js';
-import {requirePermission} from '../middleware/auth.js';
+import {requirePage} from '../middleware/auth.js';
 import {log} from '../lib/logger.js';
 import {sendMail} from '../lib/mailer.js';
 import {leadLimiter} from '../lib/rateLimit.js';
@@ -134,7 +134,7 @@ publicLeads.post('/', async (req, res) => {
 });
 
 export const adminLeads = Router();
-adminLeads.get('/', requirePermission('leads.view'), async (req, res) => {
+adminLeads.get('/', requirePage('leads'), async (req, res) => {
   const where: string[] = [];
   const params: unknown[] = [];
   if (STATUSES.includes(req.query.status as (typeof STATUSES)[number])) {
@@ -155,7 +155,7 @@ adminLeads.get('/', requirePermission('leads.view'), async (req, res) => {
   res.json({leads: rows.map(toLead)});
 });
 
-adminLeads.patch('/:id', requirePermission('leads.edit'), async (req, res) => {
+adminLeads.patch('/:id', requirePage('leads'), async (req, res) => {
   const status = req.body?.status;
   if (!STATUSES.includes(status)) return res.status(400).json({error: `Status must be one of ${STATUSES.join(', ')}.`});
   if (!isUuid(req.params.id)) return res.status(404).json({error: 'Lead not found.'});

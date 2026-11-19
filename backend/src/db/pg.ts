@@ -3,12 +3,10 @@
 import pg from 'pg';
 import {env} from '../config/env.js';
 import {log} from '../lib/logger.js';
-import type {Role} from '../lib/roles.js';
 
 export interface AdminRow {
   id: string;
   email: string; // stored lower-case, unique
-  role: Role;
   password: string; // bcrypt hash, never the password itself
   name: string;
   active: boolean;
@@ -65,7 +63,6 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const isUuid = (id: unknown): id is string => typeof id === 'string' && UUID.test(id);
 
 /* column lists with camelCase names, for SELECT … and RETURNING … */
-export const ADMIN_COLS = `id, email, role, name, active, created_at as "createdAt", last_login_at as "lastLoginAt"`;
 export const LISTING_COLS = `id, seq, mode, name, area, type, beds, sqm, price, own, rent, am, ex, hue, line, photo,
   published, created_at as "createdAt", updated_at as "updatedAt", updated_by as "updatedBy"`;
 
@@ -124,13 +121,56 @@ create extension if not exists pgcrypto;
 create table if not exists admins (
   id uuid primary key default gen_random_uuid(),
   email text not null unique check (email = lower(email)),
-  role text not null check (role in ('super_admin', 'marketing_manager', 'viewer')),
   password text not null,
   name text not null default '',
   active boolean not null default true,
   created_at timestamptz not null default now(),
   last_login_at timestamptz
 );
+
+-- roles: what the CEO grants. pages lists dashboard page keys (backend/src/lib/roles.ts -> PAGES).
+-- The one "system" role is Super Admin: every page, can't be edited or deleted.
+create table if not exists roles (
+  id uuid primary key default gen_random_uuid(),
+  name text not null unique,
+  description text not null default '',
+  pages text[] not null default '{}',
+  system boolean not null default false,
+  created_at timestamptz not null default now()
+);
+create unique index if not exists roles_single_system on roles (system) where system;
+create unique index if not exists roles_name_ci on roles (lower(name));
+insert into roles (name, description, system)
+  values ('Super Admin', 'Every page, including employees and roles', true)
+  on conflict do nothing;
+
+-- an employee can have several roles
+create table if not exists admin_roles (
+  admin_id uuid not null references admins (id) on delete cascade,
+  role_id uuid not null references roles (id) on delete cascade,
+  primary key (admin_id, role_id)
+);
+create index if not exists admin_roles_role on admin_roles (role_id);
+
+-- once: the old fixed admins.role column becomes roles + admin_roles
+do $$
+begin
+  if exists (select 1 from information_schema.columns
+              where table_schema = current_schema() and table_name = 'admins' and column_name = 'role') then
+    insert into roles (name, description, pages)
+      values ('Marketing Manager', 'Properties', '{properties}') on conflict do nothing;
+    if exists (select 1 from admins where role = 'viewer') then
+      insert into roles (name, description, pages) values ('Viewer', 'Properties', '{properties}') on conflict do nothing;
+    end if;
+    insert into admin_roles (admin_id, role_id)
+      select a.id, r.id from admins a
+        join roles r on (a.role = 'super_admin' and r.system)
+                     or (a.role = 'marketing_manager' and r.name = 'Marketing Manager')
+                     or (a.role = 'viewer' and r.name = 'Viewer')
+      on conflict do nothing;
+    alter table admins drop column role;
+  end if;
+end $$;
 
 create table if not exists sessions (
   token_hash text primary key,
@@ -186,6 +226,8 @@ create table if not exists app_meta (
 );
 
 alter table admins enable row level security;
+alter table roles enable row level security;
+alter table admin_roles enable row level security;
 alter table sessions enable row level security;
 alter table listings enable row level security;
 alter table leads enable row level security;
@@ -193,7 +235,7 @@ alter table app_meta enable row level security;
 do $$
 begin
   if exists (select 1 from pg_roles where rolname = 'anon') then
-    revoke all on admins, sessions, listings, leads, app_meta from anon, authenticated;
+    revoke all on admins, roles, admin_roles, sessions, listings, leads, app_meta from anon, authenticated;
     revoke all on sequence listings_seq from anon, authenticated;
   end if;
 end $$;

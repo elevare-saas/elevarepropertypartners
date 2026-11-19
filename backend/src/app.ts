@@ -10,6 +10,7 @@ import {healthRouter} from './routes/health.js';
 import {adminLeads, publicLeads} from './routes/leads.js';
 import {adminListings, publicListings} from './routes/listings.js';
 import {seoRouter, serveFrontend} from './routes/seo.js';
+import {rolesRouter} from './routes/roles.js';
 import {usersRouter} from './routes/users.js';
 
 const trustProxy = (v: string) => (v === 'true' ? true : v === 'false' ? false : /^\d+$/.test(v) ? Number(v) : v);
@@ -34,6 +35,7 @@ export function createApp() {
   app.use('/api/admin/listings', adminListings);
   app.use('/api/admin/leads', adminLeads);
   app.use('/api/admin/users', usersRouter);
+  app.use('/api/admin/roles', rolesRouter);
   app.use('/uploads', express.static(env.limits.uploadDir, {maxAge: '30d', immutable: true}));
   app.use(seoRouter);
   serveFrontend(app);

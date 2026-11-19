@@ -1,9 +1,9 @@
-/* Sign-in check against the "admins" table: email → password → active + role.
+/* Sign-in check against the "admins" table: email → password → active.
    Every failure costs the same bcrypt time, so the form can't reveal which emails exist. */
 import {createHash, timingSafeEqual} from 'node:crypto';
 import {checkPassword, hashPassword} from '../lib/passwords.js';
-import {isRole, toUser, type User} from '../lib/roles.js';
-import {ADMIN_COLS, one, query, type AdminRow} from '../db/pg.js';
+import {loadUser, type User} from '../lib/roles.js';
+import {one, query, type AdminRow} from '../db/pg.js';
 
 const DUMMY_HASH = hashPassword('timing-equaliser-not-a-real-password');
 const BCRYPT = /^\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53}$/;
@@ -17,10 +17,12 @@ export type VerifyResult =
 
 /* emails are stored lower-case (the table enforces it) */
 const findAdmin = (email: string) =>
-  one<AdminRow>(`select ${ADMIN_COLS}, password from admins where email = $1`, [email]);
+  one<Pick<AdminRow, 'id' | 'password' | 'active'>>('select id, password, active from admins where email = $1', [
+    email
+  ]);
 
 /* bcrypt hash, or a plain-text password inserted by hand: matched once, then replaced by a hash */
-async function passwordMatches(admin: AdminRow, password: string) {
+async function passwordMatches(admin: Pick<AdminRow, 'id' | 'password'>, password: string) {
   if (BCRYPT.test(admin.password)) return checkPassword(password, admin.password);
   await checkPassword(password, await DUMMY_HASH);
   if (!timingSafeEqual(sha256(password), sha256(admin.password))) return false;
@@ -36,11 +38,9 @@ export async function verifyCredentials(rawEmail: string, password: string): Pro
   }
   if (!(await passwordMatches(admin, password))) return {ok: false, reason: 'wrong_password'};
   if (!admin.active) return {ok: false, reason: 'disabled'};
-  if (!isRole(admin.role)) return {ok: false, reason: 'invalid_account'};
 
-  const updated = await one<Omit<AdminRow, 'password'>>(
-    `update admins set last_login_at = now() where id = $1 returning ${ADMIN_COLS}`,
-    [admin.id]
-  );
-  return {ok: true, user: toUser(updated ?? admin)};
+  /* an account without roles can still sign in: it sees only Account management */
+  await query('update admins set last_login_at = now() where id = $1', [admin.id]);
+  const user = await loadUser(admin.id);
+  return user ? {ok: true, user} : {ok: false, reason: 'invalid_account'};
 }

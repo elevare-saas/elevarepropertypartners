@@ -1,5 +1,5 @@
 /* create or reset a Super Admin:  npm run create-admin -- someone@example.com "a-long-password" */
-import {closeDb, connectDb, one} from '../db/pg.js';
+import {closeDb, connectDb, one, query} from '../db/pg.js';
 import {hashPassword, passwordProblem} from '../lib/passwords.js';
 import {endAllSessions} from '../lib/sessions.js';
 
@@ -13,10 +13,14 @@ try {
   await connectDb();
   /* xmax = 0 only for a freshly inserted row: tells "created" from "reset" */
   const r = await one<{id: string; created: boolean}>(
-    `insert into admins (email, name, role, password) values ($1, 'Super Admin', 'super_admin', $2)
-     on conflict (email) do update set password = excluded.password, role = 'super_admin', active = true
+    `insert into admins (email, name, password) values ($1, 'Super Admin', $2)
+     on conflict (email) do update set password = excluded.password, active = true
      returning id, (xmax = 0) as created`,
     [email, await hashPassword(password)]
+  );
+  await query(
+    'insert into admin_roles (admin_id, role_id) select $1, id from roles where system on conflict do nothing',
+    [r!.id]
   );
   await endAllSessions(r!.id);
   console.log(

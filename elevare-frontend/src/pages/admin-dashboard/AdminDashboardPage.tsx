@@ -2,11 +2,11 @@
    Below 1000px the sidebar becomes a drawer opened from the top bar. */
 import {useState, type ReactNode} from 'react';
 import {Badge, Brand, Btn} from '@/components/admin/kit';
-import {useAuth, useCurrentUser, usePermission} from '@/hooks/useAuth';
+import {useAuth, useCurrentUser} from '@/hooks/useAuth';
 import {useDocumentTitle, useEscapeKey, useLockBodyScroll} from '@/hooks/useDocument';
 import {useSearchParam} from '@/hooks/useRouter';
 import {cx} from '@/lib/format';
-import {ROLE_LABEL, ROLE_TONE} from '@/lib/roles';
+import {canAccess} from '@/lib/roles';
 import AccountPanel from './components/AccountPanel';
 import EmployeesPanel from './components/EmployeesPanel';
 import PropertiesPanel from './components/PropertiesPanel';
@@ -50,11 +50,15 @@ const SECTIONS: Record<Section, {label: string; icon: ReactNode; panel: () => Re
 export default function AdminDashboardPage() {
   const user = useCurrentUser();
   const {logout} = useAuth();
-  const canManageEmployees = usePermission('users.manage');
-  const sections: Section[] = canManageEmployees ? ['properties', 'employees', 'account'] : ['properties', 'account'];
+  /* only the pages this user's roles grant; Account management is always there */
+  const sections: Section[] = [
+    ...(['properties', 'employees'] as const).filter(page => canAccess(user, page)),
+    'account'
+  ];
+  const home = sections[0];
 
   const [param, setParam] = useSearchParam('section');
-  const section: Section = sections.includes(param as Section) ? (param as Section) : 'properties';
+  const section: Section = sections.includes(param as Section) ? (param as Section) : home;
   useDocumentTitle(`${SECTIONS[section].label} · Elevare Admin`);
 
   const [menuOpen, setMenuOpen] = useState(false);
@@ -62,7 +66,7 @@ export default function AdminDashboardPage() {
   useLockBodyScroll(menuOpen);
 
   function open(next: Section) {
-    setParam(next === 'properties' ? null : next);
+    setParam(next === home ? null : next);
     setMenuOpen(false);
     window.scrollTo(0, 0);
   }
@@ -140,7 +144,14 @@ export default function AdminDashboardPage() {
             <div className="min-w-0">
               <div className="text-[13.5px] font-semibold truncate">{user.name || user.email}</div>
               <div className="mt-[3px]">
-                <Badge tone={ROLE_TONE[user.role]}>{ROLE_LABEL[user.role]}</Badge>
+                {user.roles.length ? (
+                  <Badge tone={user.superAdmin ? 'pink' : 'violet'}>
+                    {user.roles[0].name}
+                    {user.roles.length > 1 ? ` +${user.roles.length - 1}` : ''}
+                  </Badge>
+                ) : (
+                  <Badge>No role yet</Badge>
+                )}
               </div>
             </div>
           </div>

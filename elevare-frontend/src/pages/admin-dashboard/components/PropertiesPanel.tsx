@@ -2,7 +2,7 @@ import {useState} from 'react';
 import {Alert, Badge, Btn, Card, Input, Select} from '@/components/admin/kit';
 import {AREAS, TYPES} from '@/concierge/data';
 import PropertyImage from '@/components/site/PropertyImage';
-import {usePermission} from '@/hooks/useAuth';
+import {useCanAccess} from '@/hooks/useAuth';
 import {useToast} from '@/hooks/useToast';
 import {cx, thb, when} from '@/lib/format';
 import type {AdminListing} from '@/types/admin';
@@ -11,7 +11,8 @@ import {useListings} from '@/pages/admin-dashboard/hooks/useListings';
 import ListingEditor from './ListingEditor';
 
 export default function PropertiesPanel() {
-  const editable = usePermission('listings.edit');
+  /* page access means full access (the CEO grants pages, not separate read-only rights) */
+  const editable = useCanAccess('properties');
   const toast = useToast();
   const {listings: rows, error, pendingId, bulkPending, upsert, togglePublished, remove, removeMany} = useListings();
   const {filters, setFilter, shown, stats} = useListingFilters(rows);

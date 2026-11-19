@@ -4,7 +4,7 @@ import {randomBytes} from 'node:crypto';
 import {extname} from 'node:path';
 import {env} from '../config/env.js';
 import {isUniqueViolation, LISTING_COLS, one, query, type ListingRow} from '../db/pg.js';
-import {requirePermission} from '../middleware/auth.js';
+import {requirePage} from '../middleware/auth.js';
 import {canStorePhotos, deletePhoto, isValidPhoto, savePhoto} from '../lib/photoStore.js';
 
 /* must match the frontend's AREAS and AMEN (src/concierge/data.ts): the matching engine prices by area and scores by amenity */
@@ -168,12 +168,12 @@ publicListings.get('/:id', async (req, res) => {
 /* ---------- admin ---------- */
 export const adminListings = Router();
 
-adminListings.get('/', requirePermission('listings.view'), async (_req, res) => {
+adminListings.get('/', requirePage('properties'), async (_req, res) => {
   const {rows} = await query<Row>(`select ${LISTING_COLS} from listings order by updated_at desc, seq desc`);
   res.json({listings: rows.map(toAdmin), areas: AREAS, amenities: AMENITIES});
 });
 
-adminListings.post('/', requirePermission('listings.edit'), async (req, res) => {
+adminListings.post('/', requirePage('properties'), async (req, res) => {
   const {errors, value: v} = validate(req.body ?? {});
   if (errors.length) return res.status(400).json({error: errors.join(' '), errors});
   /* random 8-character id; retried on the rare collision. seq (display order) comes from a sequence */
@@ -193,7 +193,7 @@ adminListings.post('/', requirePermission('listings.edit'), async (req, res) => 
   }
 });
 
-adminListings.put('/:id', requirePermission('listings.edit'), async (req, res) => {
+adminListings.put('/:id', requirePage('properties'), async (req, res) => {
   const old = await get(String(req.params.id));
   if (!old) return res.status(404).json({error: 'Listing not found.'});
   const {errors, value: v} = validate(req.body ?? {});
@@ -210,7 +210,7 @@ adminListings.put('/:id', requirePermission('listings.edit'), async (req, res) =
   res.json({listing: toAdmin(row!)});
 });
 
-adminListings.patch('/:id/published', requirePermission('listings.edit'), async (req, res) => {
+adminListings.patch('/:id/published', requirePage('properties'), async (req, res) => {
   const old = await get(String(req.params.id));
   if (!old) return res.status(404).json({error: 'Listing not found.'});
   const published = !!req.body?.published;
@@ -221,7 +221,7 @@ adminListings.patch('/:id/published', requirePermission('listings.edit'), async 
   res.json({listing: toAdmin(row!)});
 });
 
-adminListings.delete('/:id', requirePermission('listings.edit'), async (req, res) => {
+adminListings.delete('/:id', requirePage('properties'), async (req, res) => {
   const old = await one<Pick<Row, 'photo'>>('delete from listings where id = $1 returning photo', [
     String(req.params.id)
   ]);
@@ -231,7 +231,7 @@ adminListings.delete('/:id', requirePermission('listings.edit'), async (req, res
 });
 
 /* {ids: [...]} deletes those; {all: true} deletes every listing → {deleted} */
-adminListings.post('/delete', requirePermission('listings.edit'), async (req, res) => {
+adminListings.post('/delete', requirePage('properties'), async (req, res) => {
   const {ids, all} = req.body ?? {};
   let deleted;
   if (all === true) deleted = await query<Pick<Row, 'photo'>>('delete from listings returning photo');
@@ -249,7 +249,7 @@ const upload = multer({
   fileFilter: (_req, f, cb) =>
     cb(null, /^image\/(jpeg|png|webp)$/.test(f.mimetype) && /\.(jpe?g|png|webp)$/i.test(f.originalname))
 });
-adminListings.post('/photo', requirePermission('listings.edit'), (req, res, next) => {
+adminListings.post('/photo', requirePage('properties'), (req, res, next) => {
   if (!canStorePhotos())
     return res.status(503).json({error: 'Photo storage is not set up yet (BLOB_READ_WRITE_TOKEN).'});
   upload.single('photo')(req, res, err => {

@@ -1,6 +1,6 @@
 import type {NextFunction, Request, Response} from 'express';
 import {sessionForToken, sessionToken} from '../lib/sessions.js';
-import {permissionsOf, type Permission, type User} from '../lib/roles.js';
+import {canAccess, type User} from '../lib/roles.js';
 
 declare module 'express-serve-static-core' {
   interface Request {
@@ -22,8 +22,15 @@ export const requireLogin = (req: Request, res: Response, next: NextFunction) =>
   next();
 };
 
-export const requirePermission = (p: Permission) => (req: Request, res: Response, next: NextFunction) => {
+/* the user's roles must grant this dashboard page (lib/roles.ts → PAGES) */
+export const requirePage = (page: string) => (req: Request, res: Response, next: NextFunction) => {
   if (!req.user) return res.status(401).json({error: 'Please sign in.'});
-  if (!permissionsOf(req.user.role).includes(p)) return res.status(403).json({error: 'Your role does not allow this.'});
+  if (!canAccess(req.user, page)) return res.status(403).json({error: 'You don’t have access to this page.'});
+  next();
+};
+
+export const requireSuperAdmin = (req: Request, res: Response, next: NextFunction) => {
+  if (!req.user) return res.status(401).json({error: 'Please sign in.'});
+  if (!req.user.superAdmin) return res.status(403).json({error: 'Only a Super Admin can do this.'});
   next();
 };

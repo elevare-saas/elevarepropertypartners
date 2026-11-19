@@ -1,7 +1,7 @@
 import {use} from 'react';
 import {AuthContext} from '@/context/auth/AuthContext';
-import {can} from '@/lib/roles';
-import type {AdminUser, Permission} from '@/types/admin';
+import {canAccess} from '@/lib/roles';
+import type {AdminUser, PageKey} from '@/types/admin';
 
 export function useAuth() {
   const auth = use(AuthContext);
@@ -16,6 +16,7 @@ export function useCurrentUser(): AdminUser {
   return user;
 }
 
-export function usePermission(permission: Permission) {
-  return can(useAuth().user, permission);
+/* whether the signed-in user's roles grant this dashboard page */
+export function useCanAccess(page: PageKey) {
+  return canAccess(useAuth().user, page);
 }

@@ -4,7 +4,10 @@ import {useCurrentUser} from '@/hooks/useAuth';
 import {useMutation} from '@/hooks/useMutation';
 import {useToast} from '@/hooks/useToast';
 import {when} from '@/lib/format';
-import {ROLE_DESC, ROLE_LABEL} from '@/lib/roles';
+import {roleNames} from '@/lib/roles';
+import type {PageKey} from '@/types/admin';
+
+const PAGE_LABEL: Record<PageKey, string> = {properties: 'Properties management', employees: 'Employees management'};
 import {authApi} from '@/services/authApi';
 
 export default function AccountPanel() {
@@ -41,8 +44,11 @@ export default function AccountPanel() {
           <span className="text-muted">Email:</span> {user.email}
         </div>
         <div>
-          <span className="text-muted">Role:</span> <b>{ROLE_LABEL[user.role]}</b>{' '}
-          <span className="text-muted">· {ROLE_DESC[user.role]}</span>
+          <span className="text-muted">{user.roles.length > 1 ? 'Roles' : 'Role'}:</span> <b>{roleNames(user)}</b>
+        </div>
+        <div>
+          <span className="text-muted">Pages you can open:</span>{' '}
+          {user.superAdmin ? 'every page' : [...user.pages.map(p => PAGE_LABEL[p]), 'Account management'].join(', ')}
         </div>
         <div>
           <span className="text-muted">Member since:</span> {when(user.createdAt)}

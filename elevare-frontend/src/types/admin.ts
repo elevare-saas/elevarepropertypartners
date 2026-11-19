@@ -1,19 +1,40 @@
 /* mirror the backend's JSON (../backend/src/routes) */
 import type {Listing, Mode, PropType} from '@/concierge/data';
 
-export type Role = 'super_admin' | 'marketing_manager' | 'viewer';
-export type Permission = 'listings.view' | 'listings.edit' | 'leads.view' | 'leads.edit' | 'users.manage';
+/* dashboard pages a role can grant (backend/src/lib/roles.ts → PAGES); Account management is always open */
+export type PageKey = 'properties' | 'employees';
+
+export interface RoleRef {
+  id: string;
+  name: string;
+  /* the built-in Super Admin role: every page, can't be edited or deleted */
+  system: boolean;
+  pages: PageKey[];
+}
+
+/* a role as the CEO manages it under Roles & access */
+export interface Role extends RoleRef {
+  description: string;
+  members: number;
+}
+export interface PageInfo {
+  key: PageKey;
+  label: string;
+  description: string;
+}
 
 /* never includes the password or its hash */
 export interface AdminUser {
   id: string;
   email: string;
   name: string;
-  role: Role;
   active: boolean;
   createdAt: string | null;
   lastLoginAt: string | null;
-  permissions: Permission[];
+  roles: RoleRef[];
+  superAdmin: boolean;
+  /* the pages this user may open */
+  pages: PageKey[];
 }
 
 export interface AdminListing extends Listing {
@@ -49,7 +70,12 @@ export interface Credentials {
 export interface NewTeamMember {
   email: string;
   name: string;
-  role: Role;
+  roleIds: string[];
   password: string;
 }
-export type TeamMemberChanges = Partial<{name: string; role: Role; active: boolean; password: string}>;
+export type TeamMemberChanges = Partial<{name: string; roleIds: string[]; active: boolean; password: string}>;
+export interface RoleInput {
+  name: string;
+  description: string;
+  pages: PageKey[];
+}
