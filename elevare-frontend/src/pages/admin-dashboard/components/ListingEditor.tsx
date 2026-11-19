@@ -1,4 +1,5 @@
-/* read-only for viewers; the parent updates its list */
+/* add / edit a property; the parent updates its list.
+   The reference code (e.g. ELV-001) is private: dashboard, inquiry emails and webhook only, never the website. */
 import {useRef, useState, type FormEvent} from 'react';
 import {Alert, Btn, Field, Input, Select, Sheet, Textarea} from '@/components/admin/kit';
 import {AMEN, AREAS, TYPES, type Mode, type PropType} from '@/concierge/data';
@@ -15,6 +16,8 @@ interface Draft {
   type: PropType;
   beds: string;
   sqm: string;
+  land: string;
+  refCode: string;
   price: string;
   own: string;
   rent: string;
@@ -25,7 +28,7 @@ interface Draft {
   hue: number;
   published: boolean;
 }
-const fromListing = (l: AdminListing | null): Draft =>
+const fromListing = (l: AdminListing | null, suggestedRef: string): Draft =>
   l
     ? {
         mode: l.mode,
@@ -33,7 +36,9 @@ const fromListing = (l: AdminListing | null): Draft =>
         area: l.area,
         type: l.type,
         beds: String(l.beds),
-        sqm: String(l.sqm),
+        sqm: l.sqm ? String(l.sqm) : '',
+        land: l.land ? String(l.land) : '',
+        refCode: l.refCode ?? '',
         price: String(l.price),
         own: l.own || '',
         rent: l.rent ? String(l.rent) : '',
@@ -51,6 +56,8 @@ const fromListing = (l: AdminListing | null): Draft =>
         type: 'villa',
         beds: '2',
         sqm: '',
+        land: '',
+        refCode: suggestedRef,
         price: '',
         own: '',
         rent: '',
@@ -77,10 +84,12 @@ const toInput = (d: Draft): ListingInput => {
     area: d.area,
     type: d.type,
     beds: Number(d.beds),
-    sqm: Number(d.sqm),
+    sqm: d.sqm.trim() ? Number(d.sqm) : null,
+    land: d.land.trim() ? Number(d.land) : null,
+    refCode: d.refCode.trim().toUpperCase(),
     price: Number(digits(d.price)),
-    own: buy ? d.own.trim() : undefined,
-    rent: buy ? Number(digits(d.rent)) : undefined,
+    own: buy ? d.own.trim() || null : undefined,
+    rent: buy ? (digits(d.rent) ? Number(digits(d.rent)) : null) : undefined,
     am: d.am,
     ex: d.ex
       .split('\n')
@@ -93,18 +102,33 @@ const toInput = (d: Draft): ListingInput => {
   };
 };
 
+/* the next free ELV-### code, after the highest one in use */
+export function nextRefCode(listings: Pick<AdminListing, 'refCode'>[]) {
+  const top = Math.max(0, ...listings.map(l => Number(/^ELV-(\d+)$/i.exec(l.refCode ?? '')?.[1] ?? 0)));
+  return `ELV-${String(top + 1).padStart(3, '0')}`;
+}
+
+/* a public title from the facts, never the project or building name: "3-Bed Sea-View Pool Villa in Kata" */
+function suggestTitle(d: Draft) {
+  const kind = {villa: 'Pool Villa', condo: 'Condo', townhouse: 'Townhouse'}[d.type];
+  const view = d.am.includes('seaview') ? 'Sea-View ' : '';
+  return `${d.beds}-Bed ${view}${kind}${d.area ? ` in ${d.area}` : ''}`;
+}
+
 export default function ListingEditor({
   listing,
+  suggestedRef,
   readOnly,
   onClose,
   onSaved
 }: {
   listing: AdminListing | null;
+  suggestedRef: string;
   readOnly: boolean;
   onClose: () => void;
   onSaved: (l: AdminListing, created: boolean) => void;
 }) {
-  const [d, setD] = useState<Draft>(() => fromListing(listing));
+  const [d, setD] = useState<Draft>(() => fromListing(listing, suggestedRef));
   const file = useRef<HTMLInputElement>(null);
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setD(x => ({...x, [k]: v}));
   const buy = d.mode === 'buy';
@@ -170,15 +194,38 @@ export default function ListingEditor({
             ))}
           </div>
 
-          <Field label="Property name">
-            <Input
-              required
-              value={d.name}
-              onChange={e => set('name', e.target.value)}
-              placeholder="e.g. Villa Sala Lagoon"
-              maxLength={80}
-            />
-          </Field>
+          <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)] upto480:grid-cols-1 gap-[14px] items-start">
+            <Field
+              label="Listing title (shown on the website)"
+              hint="Describe the home; don't use the project or building name."
+            >
+              <div className="flex gap-[8px]">
+                <Input
+                  required
+                  value={d.name}
+                  onChange={e => set('name', e.target.value)}
+                  placeholder="e.g. 2-Bed Sea-View Condo in Kata"
+                  maxLength={80}
+                />
+                <Btn
+                  size="sm"
+                  onClick={() => set('name', suggestTitle(d))}
+                  title="Build a title from the details below"
+                >
+                  Suggest
+                </Btn>
+              </div>
+            </Field>
+            <Field label="Reference code (private)" hint="Dashboard and inquiries only. Never on the website.">
+              <Input
+                value={d.refCode}
+                onChange={e => set('refCode', e.target.value.toUpperCase())}
+                placeholder="e.g. ELV-001"
+                maxLength={30}
+                className="font-mono"
+              />
+            </Field>
+          </div>
 
           <div className="grid grid-cols-2 upto480:grid-cols-1 gap-[14px]">
             <Field label="Area">
@@ -210,14 +257,22 @@ export default function ListingEditor({
                 onChange={e => set('beds', e.target.value)}
               />
             </Field>
-            <Field label="Size (m²)">
+            <Field label="Floor area (m², optional)" hint="Indoor living / built-up area.">
               <Input
                 type="number"
                 min={10}
-                required
                 value={d.sqm}
                 onChange={e => set('sqm', e.target.value)}
                 placeholder="e.g. 220"
+              />
+            </Field>
+            <Field label="Land area (m², optional)" hint="Plot size, mainly for villas and houses.">
+              <Input
+                type="number"
+                min={10}
+                value={d.land}
+                onChange={e => set('land', e.target.value)}
+                placeholder="e.g. 600"
               />
             </Field>
           </div>
@@ -237,16 +292,15 @@ export default function ListingEditor({
             </Field>
             {buy && (
               <Field
-                label="Estimated rent (THB / month)"
+                label="Estimated rent (THB / month, optional)"
                 hint={
                   rentNum && priceNum
                     ? `Gross yield ≈ ${(((rentNum * 12) / priceNum) * 100).toFixed(1)}%`
-                    : 'Used to show the yield'
+                    : 'If known: the website then shows the rental yield'
                 }
               >
                 <Input
                   inputMode="numeric"
-                  required
                   value={d.rent}
                   onChange={e => set('rent', e.target.value)}
                   placeholder="e.g. 70000"
@@ -256,9 +310,11 @@ export default function ListingEditor({
           </div>
 
           {buy && (
-            <Field label="Ownership" hint="Shown to buyers; “freehold” also counts for buyers who ask for freehold.">
+            <Field
+              label="Ownership (optional)"
+              hint="Shown to buyers when filled in; “freehold” also matches buyers who ask for freehold."
+            >
               <Input
-                required
                 list="ownership"
                 value={d.own}
                 onChange={e => set('own', e.target.value)}

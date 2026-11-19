@@ -86,6 +86,24 @@ const toLead = (l: LeadRow) => ({
   ...(l.updatedAt && {updatedAt: l.updatedAt, updatedBy: l.updatedBy})
 });
 
+/* the private reference codes (e.g. ELV-001) of the homes asked about, added here on the server: staff see them in
+   the stored lead, the email and the webhook; the visitor never does */
+async function addReferenceCodes(doc: Record<string, unknown>) {
+  const listings = Array.isArray(doc.listings) ? (doc.listings as Record<string, unknown>[]) : [];
+  const ids = [doc.listing_id, ...listings.map(l => l?.id)].filter((x): x is string => typeof x === 'string');
+  if (!ids.length) return;
+  const {rows} = await query<{id: string; refCode: string}>(
+    'select id, ref_code as "refCode" from listings where id = any($1) and ref_code is not null',
+    [ids]
+  );
+  const code = new Map(rows.map(r => [r.id, r.refCode]));
+  if (typeof doc.listing_id === 'string' && code.has(doc.listing_id)) doc.listing_ref = code.get(doc.listing_id);
+  if (listings.length)
+    doc.listings = listings.map(l =>
+      typeof l?.id === 'string' && code.has(l.id) ? {...l, ref_code: code.get(l.id)} : l
+    );
+}
+
 export const publicLeads = Router();
 publicLeads.post('/', async (req, res) => {
   const ip = req.ip ?? 'unknown';
@@ -100,13 +118,17 @@ publicLeads.post('/', async (req, res) => {
       const c = clean(b[f]);
       if (c !== undefined) doc[f] = c;
     }
+  await addReferenceCodes(doc);
   const row = await one<{id: string}>('insert into leads (ref, data, user_agent) values ($1, $2, $3) returning id', [
     typeof doc.ref === 'string' ? doc.ref : null,
     doc,
     String(req.get('user-agent') ?? '').slice(0, 300)
   ]);
   const insertedId = row!.id;
-  log.info(`Lead ${doc.ref ?? insertedId} stored (${doc.channel ?? '?'}, ${doc.listing ?? 'no listing'})`);
+  log.info(
+    `Lead ${doc.ref ?? insertedId} stored (${doc.channel ?? '?'}, ${doc.listing ?? 'no listing'}` +
+      `${doc.listing_ref ? ' ' + doc.listing_ref : ''})`
+  );
 
   if (env.mail.leadsNotify.length) {
     const s = (k: string) => (doc[k] == null || doc[k] === '' ? '—' : String(doc[k]));
@@ -118,6 +140,7 @@ publicLeads.post('/', async (req, res) => {
         `Contact: ${s('contact')}`,
         `Via: ${s('channel')}`,
         `Home: ${s('listing')} (${s('listing_id')})`,
+        `Reference code: ${s('listing_ref')}`,
         `Area: ${s('area')}`,
         `Budget (THB): ${s('budget_thb')}`,
         `Viewing: ${s('viewing')} ${s('day')} ${s('time')}`,

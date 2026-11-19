@@ -21,8 +21,12 @@ export interface Listing {
   area: string;
   type: PropType;
   beds: number;
-  sqm: number;
+  /* floor (built-up) area in m²: optional, so check before using */
+  sqm?: number;
+  /* plot size in m²: optional */
+  land?: number;
   price: number;
+  /* homes for sale: both optional; the site hides what's missing */
   own?: string;
   rent?: number;
   am: string[];

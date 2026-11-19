@@ -111,7 +111,7 @@ export function listingSeo(l: Listing): Seo {
   const price = thb(l.price) + (l.mode === 'rent' ? ' / month' : '');
   return {
     title: `${l.name}: ${describe(l)} | ${BRAND}`,
-    description: `${describe(l)}. ${l.sqm} m², ${price}. ${l.line}`.slice(0, 300),
+    description: `${describe(l)}.${l.sqm ? ` ${l.sqm} m²,` : ''} ${price}. ${l.line}`.slice(0, 300),
     path: listingPath(l),
     jsonLd: [
       {
@@ -127,7 +127,7 @@ export function listingSeo(l: Listing): Seo {
           name: l.name,
           numberOfRooms: l.beds,
           numberOfBedrooms: l.beds,
-          floorSize: {'@type': 'QuantitativeValue', value: l.sqm, unitCode: 'MTK'},
+          ...(l.sqm && {floorSize: {'@type': 'QuantitativeValue', value: l.sqm, unitCode: 'MTK'}}),
           address: {'@type': 'PostalAddress', addressLocality: l.area, addressRegion: 'Phuket', addressCountry: 'TH'}
         }
       },

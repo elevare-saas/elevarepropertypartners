@@ -64,10 +64,12 @@ export default function ListingCard({
             <Icon d={BED} />
             {l.beds} bed
           </span>
-          <span className="flex items-center gap-[5px]">
-            <Icon d={AREA} />
-            {l.sqm} m²
-          </span>
+          {l.sqm ? (
+            <span className="flex items-center gap-[5px]">
+              <Icon d={AREA} />
+              {l.sqm} m²
+            </span>
+          ) : null}
           <span>{TYPES[l.type]}</span>
         </span>
         <span className="font-mono tabular-nums text-[16px] text-ink">{priceLabel(l)}</span>

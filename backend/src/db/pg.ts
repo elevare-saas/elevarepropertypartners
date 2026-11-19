@@ -21,7 +21,9 @@ export interface ListingRow {
   area: string;
   type: string;
   beds: number;
-  sqm: number;
+  sqm: number | null; // floor (built-up) area; optional
+  landSqm: number | null; // plot size; optional
+  refCode: string | null; // private reference code, e.g. "ELV-001": admin only, never sent to the website
   price: number;
   own: string | null;
   rent: number | null;
@@ -63,8 +65,11 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const isUuid = (id: unknown): id is string => typeof id === 'string' && UUID.test(id);
 
 /* column lists with camelCase names, for SELECT … and RETURNING … */
-export const LISTING_COLS = `id, seq, mode, name, area, type, beds, sqm, price, own, rent, am, ex, hue, line, photo,
-  published, created_at as "createdAt", updated_at as "updatedAt", updated_by as "updatedBy"`;
+export const LISTING_COLS = `id, seq, mode, name, area, type, beds, sqm, land_sqm as "landSqm", ref_code as "refCode",
+  price, own, rent, am, ex, hue, line, photo, published, created_at as "createdAt", updated_at as "updatedAt",
+  updated_by as "updatedBy"`;
+/* the unique index on reference codes, to tell "code taken" from an id collision */
+export const REF_CODE_INDEX = 'listings_ref_code';
 
 /* a plain explanation for the connection errors that waiting can't fix (wrong password, user, host…) */
 export function explainDbError(e: unknown): string | undefined {
@@ -205,6 +210,11 @@ create table if not exists listings (
 );
 create index if not exists listings_public on listings (published, mode, seq);
 create index if not exists listings_updated on listings (updated_at desc);
+-- optional floor area, optional plot size, and a private reference code (unique, any case)
+alter table listings alter column sqm drop not null;
+alter table listings add column if not exists land_sqm integer;
+alter table listings add column if not exists ref_code text;
+create unique index if not exists listings_ref_code on listings (upper(ref_code)) where ref_code is not null;
 
 create table if not exists leads (
   id uuid primary key default gen_random_uuid(),

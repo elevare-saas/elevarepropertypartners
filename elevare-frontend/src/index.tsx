@@ -8,7 +8,6 @@ import './index.css';
 
 const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement);
 
-/* "/#/admin-dashboard" (hash-style link) is read as "/admin-dashboard" */
 const url = location.hash.startsWith('#/') ? new URL(location.hash.slice(1), location.origin) : new URL(location.href);
 const adminPath = adminPathFor(url.pathname);
 const path = location.pathname.replace(/\/+$/, '') || '/';
@@ -20,18 +19,14 @@ if (adminPath) {
   import('./routes/AdminRoutes').then(({default: AdminRoutes}) => root.render(<AdminRoutes />));
 } else {
   initAnalytics();
-  /* the old property list pages are gone: send old links to the home page */
   if (path === '/properties' || path === '/properties/for-rent' || path === '/properties/for-sale')
     history.replaceState(null, '', '/' + location.hash);
   if (location.pathname === '/') {
-    /* home modules read LISTINGS on load, so import them after it's filled */
     loadListings()
       .then(() => import('./pages/home/HomePage'))
       .then(({default: HomePage}) => root.render(<HomePage />));
   } else if (listingId) {
-    /* a property address opens the home app's match view on that property (same page as from "Featured") */
     loadListings().then(async () => {
-      /* the property itself is fetched from the database again (GET /api/listings/:id) */
       const {fetchAndOpenListing} = await import('./concierge/actions');
       const result = await fetchAndOpenListing(listingId);
       if (result === 'gone') {

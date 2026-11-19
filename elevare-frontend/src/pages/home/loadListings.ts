@@ -17,10 +17,12 @@ const isListing = (l: unknown): l is Listing => {
     typeof x.area === 'string' &&
     (x.type === 'villa' || x.type === 'condo' || x.type === 'townhouse') &&
     typeof x.beds === 'number' &&
-    pos(x.sqm) &&
     pos(x.price) &&
-    /* sales carry an ownership and an estimated rent (for the yield); the API requires both */
-    (x.mode === 'rent' || (typeof x.own === 'string' && pos(x.rent))) &&
+    /* floor area, land area, ownership and estimated rent are optional (the site hides what's missing) */
+    (x.sqm === undefined || pos(x.sqm)) &&
+    (x.land === undefined || pos(x.land)) &&
+    (x.own === undefined || typeof x.own === 'string') &&
+    (x.rent === undefined || pos(x.rent)) &&
     Array.isArray(x.am) &&
     Array.isArray(x.ex)
   );

@@ -3,7 +3,7 @@ import multer from 'multer';
 import {randomBytes} from 'node:crypto';
 import {extname} from 'node:path';
 import {env} from '../config/env.js';
-import {isUniqueViolation, LISTING_COLS, one, query, type ListingRow} from '../db/pg.js';
+import {isUniqueViolation, LISTING_COLS, one, query, REF_CODE_INDEX, type ListingRow} from '../db/pg.js';
 import {requirePage} from '../middleware/auth.js';
 import {canStorePhotos, deletePhoto, isValidPhoto, savePhoto} from '../lib/photoStore.js';
 
@@ -50,7 +50,8 @@ const toListing = (r: Row) => ({
   area: r.area,
   type: r.type,
   beds: r.beds,
-  sqm: r.sqm,
+  ...(r.sqm != null && {sqm: r.sqm}),
+  ...(r.landSqm != null && {land: r.landSqm}),
   price: r.price,
   ...(r.own != null && {own: r.own}),
   ...(r.rent != null && {rent: r.rent}),
@@ -60,8 +61,10 @@ const toListing = (r: Row) => ({
   line: r.line,
   ...(r.photo && {photo: r.photo})
 });
+/* the reference code is internal: admin responses only */
 const toAdmin = (r: Row) => ({
   ...toListing(r),
+  refCode: r.refCode,
   published: r.published,
   createdAt: r.createdAt,
   updatedAt: r.updatedAt,
@@ -73,6 +76,14 @@ const get = (id: string) => one<Row>(`select ${LISTING_COLS} from listings where
 const removePhotos = (rows: Pick<Row, 'photo'>[]) => Promise.all(rows.map(r => deletePhoto(r.photo)));
 
 const int = (v: unknown) => (typeof v === 'number' ? v : Number(v));
+/* an optional area in m²: blank → null */
+function optionalArea(v: unknown, label: string, errors: string[]) {
+  if (v === undefined || v === null || v === '') return null;
+  const n = int(v);
+  if (!Number.isInteger(n) || n < 10 || n > 1_000_000)
+    errors.push(`${label} must be a whole number of m² (10 or more).`);
+  return n;
+}
 function validate(b: Record<string, unknown>) {
   const e: string[] = [];
   const mode = b.mode,
@@ -81,15 +92,20 @@ function validate(b: Record<string, unknown>) {
   const name = String(b.name ?? '').trim(),
     line = String(b.line ?? '').trim();
   const beds = int(b.beds),
-    sqm = int(b.sqm),
     price = int(b.price),
     hue = b.hue == null ? 260 : int(b.hue);
   if (mode !== 'rent' && mode !== 'buy') e.push('Choose rent or sale.');
-  if (!name) e.push('Name is required.');
+  if (!name) e.push('Listing title is required.');
   if (!AREAS.includes(area as string)) e.push('Choose an area.');
   if (!TYPES.includes(type as string)) e.push('Choose a property type.');
   if (!Number.isInteger(beds) || beds < 1 || beds > 20) e.push('Bedrooms must be a whole number from 1 to 20.');
-  if (!Number.isInteger(sqm) || sqm < 10) e.push('Size must be at least 10 sqm.');
+  const sqm = optionalArea(b.sqm, 'Floor area', e),
+    landSqm = optionalArea(b.land, 'Land area', e);
+  const refCode = String(b.refCode ?? '')
+    .trim()
+    .toUpperCase();
+  if (refCode && !/^[A-Z0-9][A-Z0-9._-]{0,29}$/.test(refCode))
+    e.push('Reference code: letters, numbers, dots or dashes only (up to 30), e.g. ELV-001.');
   if (!Number.isSafeInteger(price) || price <= 0)
     e.push(mode === 'buy' ? 'Sale price is required.' : 'Monthly rent is required.');
   const am = Array.isArray(b.am) ? [...new Set(b.am.filter((a): a is string => AMENITIES.includes(a as string)))] : [];
@@ -101,12 +117,13 @@ function validate(b: Record<string, unknown>) {
     : [];
   let own: string | null = null,
     rent: number | null = null;
+  /* both optional for homes for sale: the website hides what's missing */
   if (mode === 'buy') {
-    own = String(b.own ?? '').trim();
-    rent = int(b.rent);
-    if (!own) e.push('Ownership (e.g. "Foreign freehold") is required for homes for sale.');
-    if (!Number.isSafeInteger(rent) || rent <= 0)
-      e.push('Estimated monthly rent is required for homes for sale (used for the yield).');
+    own = String(b.own ?? '').trim() || null;
+    if (b.rent !== undefined && b.rent !== null && b.rent !== '') {
+      rent = int(b.rent);
+      if (!Number.isSafeInteger(rent) || rent <= 0) e.push('Estimated monthly rent must be a whole number above 0.');
+    }
   }
   const photo = isValidPhoto(b.photo) ? b.photo : null;
   return {
@@ -118,6 +135,8 @@ function validate(b: Record<string, unknown>) {
       type: type as string,
       beds,
       sqm,
+      landSqm,
+      refCode: refCode || null,
       price,
       own,
       rent,
@@ -147,8 +166,12 @@ const values = (v: ReturnType<typeof validate>['value']) => [
   v.hue,
   v.line,
   v.photo,
-  v.published
+  v.published,
+  v.refCode,
+  v.landSqm
 ];
+const refTaken = (e: unknown) => isUniqueViolation(e) && (e as {constraint?: string}).constraint === REF_CODE_INDEX;
+const REF_TAKEN = 'This reference code is already used by another property.';
 
 /* ---------- public ---------- */
 export const publicListings = Router();
@@ -181,13 +204,14 @@ adminListings.post('/', requirePage('properties'), async (req, res) => {
     try {
       const row = await one<Row>(
         `insert into listings (id, mode, name, area, type, beds, sqm, price, own, rent, am, ex, hue, line, photo,
-                               published, updated_by)
-         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+                               published, ref_code, land_sqm, updated_by)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
          returning ${LISTING_COLS}`,
         [randomBytes(4).toString('hex').toUpperCase(), ...values(v), req.user!.email]
       );
       return res.status(201).json({listing: toAdmin(row!)});
     } catch (e) {
+      if (refTaken(e)) return res.status(409).json({error: REF_TAKEN});
       if (!isUniqueViolation(e) || attempt === 4) throw e;
     }
   }
@@ -198,14 +222,20 @@ adminListings.put('/:id', requirePage('properties'), async (req, res) => {
   if (!old) return res.status(404).json({error: 'Listing not found.'});
   const {errors, value: v} = validate(req.body ?? {});
   if (errors.length) return res.status(400).json({error: errors.join(' '), errors});
-  const row = await one<Row>(
-    `update listings set mode = $2, name = $3, area = $4, type = $5, beds = $6, sqm = $7, price = $8, own = $9,
-            rent = $10, am = $11, ex = $12, hue = $13, line = $14, photo = $15, published = $16,
-            updated_by = $17, updated_at = now()
-      where id = $1
-      returning ${LISTING_COLS}`,
-    [old.id, ...values(v), req.user!.email]
-  );
+  let row;
+  try {
+    row = await one<Row>(
+      `update listings set mode = $2, name = $3, area = $4, type = $5, beds = $6, sqm = $7, price = $8, own = $9,
+              rent = $10, am = $11, ex = $12, hue = $13, line = $14, photo = $15, published = $16,
+              ref_code = $17, land_sqm = $18, updated_by = $19, updated_at = now()
+        where id = $1
+        returning ${LISTING_COLS}`,
+      [old.id, ...values(v), req.user!.email]
+    );
+  } catch (e) {
+    if (refTaken(e)) return res.status(409).json({error: REF_TAKEN});
+    throw e;
+  }
   if (old.photo !== v.photo) await removePhotos([old]);
   res.json({listing: toAdmin(row!)});
 });

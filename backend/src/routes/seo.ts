@@ -29,6 +29,8 @@ const slug = (s: string) =>
     .replace(/^-|-$/g, '');
 const listingPath = (l: Pick<ListingRow, 'id' | 'name'>) => `/properties/${slug(l.name)}-${l.id}`;
 const idFromPath = (path: string) => /^\/properties\/[a-z0-9-]*-([A-Za-z0-9]+)$/.exec(path)?.[1];
+/* " · 120 m²" when the floor area is known, else nothing */
+const area = (l: ListingRow, before: string, after = '') => (l.sqm != null ? `${before}${l.sqm} m²${after}` : '');
 const thb = (n: number) => '฿' + n.toLocaleString('en-US');
 const priceText = (l: ListingRow) => thb(l.price) + (l.mode === 'rent' ? '/month' : '');
 const published = async () =>
@@ -91,7 +93,7 @@ function listingJsonLd(l: ListingRow) {
       name: l.name,
       numberOfRooms: l.beds,
       numberOfBedrooms: l.beds,
-      floorSize: {'@type': 'QuantitativeValue', value: l.sqm, unitCode: 'MTK'},
+      ...(l.sqm != null && {floorSize: {'@type': 'QuantitativeValue', value: l.sqm, unitCode: 'MTK'}}),
       address: {'@type': 'PostalAddress', addressLocality: l.area, addressRegion: 'Phuket', addressCountry: 'TH'}
     }
   };
@@ -104,7 +106,7 @@ const breadcrumbs = (items: [string, string][]) => ({
 });
 
 const cardHtml = (l: ListingRow) =>
-  `<li><a href="${esc(listingPath(l))}">${esc(l.name)}</a> · ${esc(l.area)} · ${l.beds} bed ${esc(TYPE_LABEL[l.type] ?? l.type)} · ${l.sqm} m² · ${esc(priceText(l))}</li>`;
+  `<li><a href="${esc(listingPath(l))}">${esc(l.name)}</a> · ${esc(l.area)} · ${l.beds} bed ${esc(TYPE_LABEL[l.type] ?? l.type)}${area(l, ' · ')} · ${esc(priceText(l))}</li>`;
 
 async function pageFor(path: string): Promise<Page | null> {
   if (path === '/') return null; /* index.html already carries the home page's tags */
@@ -125,7 +127,7 @@ async function pageFor(path: string): Promise<Page | null> {
   return {
     status: 200,
     title: `${l.name}: ${what} | ${BRAND}`,
-    description: `${what}. ${l.sqm} m², ${priceText(l)}. ${l.line}`.slice(0, 300),
+    description: `${what}.${area(l, ' ', ',')} ${priceText(l)}. ${l.line}`.slice(0, 300),
     path: listingPath(l),
     /* link previews always show the Elevare image (the property photo stays in the page and its JSON-LD) */
     jsonLd: [
@@ -135,7 +137,7 @@ async function pageFor(path: string): Promise<Page | null> {
         [l.name, listingPath(l)]
       ])
     ],
-    body: `<h1>${esc(l.name)}</h1><p>${esc(what)} · ${l.sqm} m² · ${esc(priceText(l))}</p><p>${esc(l.line)}</p><ul>${l.ex.map(x => `<li>${esc(x)}</li>`).join('')}</ul>`
+    body: `<h1>${esc(l.name)}</h1><p>${esc(what)}${area(l, ' · ')} · ${esc(priceText(l))}</p><p>${esc(l.line)}</p><ul>${l.ex.map(x => `<li>${esc(x)}</li>`).join('')}</ul>`
   };
 }
 

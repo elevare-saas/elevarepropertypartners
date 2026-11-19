@@ -8,7 +8,7 @@ import {cx, thb, when} from '@/lib/format';
 import type {AdminListing} from '@/types/admin';
 import {useListingFilters, type ListingFilters} from '@/pages/admin-dashboard/hooks/useListingFilters';
 import {useListings} from '@/pages/admin-dashboard/hooks/useListings';
-import ListingEditor from './ListingEditor';
+import ListingEditor, {nextRefCode} from './ListingEditor';
 
 export default function PropertiesPanel() {
   /* page access means full access (the CEO grants pages, not separate read-only rights) */
@@ -96,7 +96,7 @@ Tip: use “Hide” instead if it may come back.`)
       >
         <Input
           type="search"
-          placeholder="Search name, ID or description"
+          placeholder="Search title, ELV code, website ID or description"
           value={filters.query}
           onChange={e => setFilter('query', e.target.value)}
           aria-label="Search properties"
@@ -198,6 +198,14 @@ Tip: use “Hide” instead if it may come back.`)
                 />
                 <div className="min-w-0 grid gap-[4px]">
                   <div className="flex items-center gap-[8px] flex-wrap">
+                    {p.refCode && (
+                      <span
+                        className="font-mono text-[12px] font-semibold text-ink bg-surface-2 border border-line rounded-[6px] py-[1px] px-[6px]"
+                        title="Private reference code (not shown on the website)"
+                      >
+                        {p.refCode}
+                      </span>
+                    )}
                     <b className="text-[15.5px]">{p.name}</b>
                     {p.published ? <Badge tone="good">Live</Badge> : <Badge>Hidden</Badge>}
                     <Badge tone={p.mode === 'rent' ? 'violet' : 'pink'}>
@@ -205,14 +213,14 @@ Tip: use “Hide” instead if it may come back.`)
                     </Badge>
                   </div>
                   <div className="text-[13px] text-muted">
-                    {p.area} · {TYPES[p.type]} · {p.beds} bed · {p.sqm} m² ·{' '}
+                    {p.area} · {TYPES[p.type]} · {p.beds} bed{p.sqm ? ` · ${p.sqm} m²` : ''} ·{' '}
                     <span className="font-mono text-ink">
                       {thb(p.price)}
                       {p.mode === 'rent' ? '/mo' : ''}
                     </span>
                   </div>
                   <div className="text-[12px] text-faint truncate">
-                    <span className="font-mono">{p.id}</span> · updated {when(p.updatedAt)}
+                    Website ID <span className="font-mono">{p.id}</span> · updated {when(p.updatedAt)}
                     {p.updatedBy && p.updatedBy !== 'seed' ? ` by ${p.updatedBy}` : ''}
                   </div>
                 </div>
@@ -249,6 +257,7 @@ Tip: use “Hide” instead if it may come back.`)
       {editing && (
         <ListingEditor
           listing={editing === 'new' ? null : editing}
+          suggestedRef={nextRefCode(rows ?? [])}
           readOnly={!editable}
           onClose={() => setEditing(null)}
           onSaved={(l, created) => {

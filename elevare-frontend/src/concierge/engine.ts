@@ -74,18 +74,21 @@ export const recArea = () => (S.mode === 'buy' ? BUY_REC[S.who as keyof typeof B
 
 /* ============ MARKET + MATCHING ============ */
 /* indicative market figure: monthly rent (rent) or sale price (buy) */
-function marketFor(mode: Listing['mode'], area: string, type: Listing['type'], beds: number, sqm: number) {
+/* rent: by bedrooms; sale: by m², so a home for sale without a floor area has no market figure (null) */
+function marketFor(mode: Listing['mode'], area: string, type: Listing['type'], beds: number, sqm?: number) {
   const f = areaOf(area)?.f ?? 1;
-  return mode === 'rent'
-    ? RENT_BASE[Math.min(6, Math.max(1, beds)) as keyof typeof RENT_BASE] * TYPE_RENT[type] * f
-    : SQM_BASE[type] * f * sqm;
+  if (mode === 'rent') return RENT_BASE[Math.min(6, Math.max(1, beds)) as keyof typeof RENT_BASE] * TYPE_RENT[type] * f;
+  return sqm ? SQM_BASE[type] * f * sqm : null;
 }
 export const market = (p: Listing) => marketFor(p.mode, p.area, p.type, p.beds, p.sqm);
 export interface Calc {
+  /* false when there's no market figure (a home for sale without a floor area): show no comparison */
+  known: boolean;
   m: number;
   diff: number;
   pct: number;
   lease?: number;
+  /* only when an estimated rent was entered */
   yield?: number;
   sqmP?: number;
   sqmM?: number;
@@ -93,16 +96,20 @@ export interface Calc {
 export function calc(p: Listing): Calc {
   const m = market(p);
   if (p.mode === 'rent') {
-    const diff = m - p.price;
-    return {m, diff, pct: Math.round((100 * diff) / m), lease: diff * S.lease};
+    const diff = m! - p.price;
+    return {known: true, m: m!, diff, pct: Math.round((100 * diff) / m!), lease: diff * S.lease};
   }
+  const yieldOf = p.rent ? (p.rent * 12) / p.price : undefined;
+  /* unknown market: neither "below" nor "above", so every comparison stays quiet */
+  if (m === null) return {known: false, m: p.price, diff: 0, pct: 0, yield: yieldOf};
   return {
+    known: true,
     m,
     diff: m - p.price,
     pct: Math.round((100 * (m - p.price)) / m),
-    yield: (p.rent! * 12) / p.price,
-    sqmP: p.price / p.sqm,
-    sqmM: m / p.sqm
+    yield: yieldOf,
+    sqmP: p.price / p.sqm!,
+    sqmM: m / p.sqm!
   };
 }
 export function score(p: Listing) {
@@ -747,7 +754,14 @@ export function buildMessage() {
       const c = calc(h);
       return rent
         ? `• ${h.name}, ${h.area}: ${thb(h.price)} per month (${S.lease} month${S.lease > 1 ? 's' : ''})`
-        : `• ${h.name}, ${h.area}: ${big(h.price)} asking, ${h.sqm} m², ${h.own!.toLowerCase()}, est. yield ${(c.yield! * 100).toFixed(1)}%`;
+        : `• ${[
+            `${h.name}, ${h.area}: ${big(h.price)} asking`,
+            h.sqm && `${h.sqm} m²`,
+            h.own?.toLowerCase(),
+            c.yield !== undefined && `est. yield ${(c.yield * 100).toFixed(1)}%`
+          ]
+            .filter(Boolean)
+            .join(', ')}`;
     })
     .join('\n');
   return `Hi ${CONFIG.brand}${S.name ? `, this is ${S.name}` : ''} 👋

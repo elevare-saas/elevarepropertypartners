@@ -38,6 +38,8 @@ export interface AdminUser {
 }
 
 export interface AdminListing extends Listing {
+  /* private reference code, e.g. ELV-001: dashboard only, never on the website */
+  refCode: string | null;
   published: boolean;
   createdAt: string;
   updatedAt: string;
@@ -51,10 +53,12 @@ export interface ListingInput {
   area: string;
   type: PropType;
   beds: number;
-  sqm: number;
+  sqm: number | null;
+  land: number | null;
+  refCode: string;
   price: number;
-  own?: string;
-  rent?: number;
+  own?: string | null;
+  rent?: number | null;
   am: string[];
   ex: string[];
   line: string;

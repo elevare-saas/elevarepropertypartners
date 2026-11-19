@@ -120,19 +120,25 @@ function CompareTable() {
       'vs. area average',
       p => {
         const c = calc(p);
-        return c.diff > 0 ? `${money(c.diff)} below` : 'at market';
+        return !c.known ? '—' : c.diff > 0 ? `${money(c.diff)} below` : 'at market';
       }
     ],
     ['Area', p => p.area],
     ['Type', p => `${p.beds}-bed ${TYPES[p.type].toLowerCase()}`],
-    ['Size', p => p.sqm + ' m²'],
+    ['Size', p => (p.sqm ? p.sqm + ' m²' : '—')],
     ['Your must-haves', p => `${[...S.must].filter(m => p.am.includes(m)).length} of ${S.must.size}`],
     ['Match', p => score(p) + '%'],
     ...(rent
       ? ([['Included', (p: Listing) => p.ex.join(', ')]] as [string, (p: Listing) => string][])
       : ([
-          ['Ownership', (p: Listing) => p.own],
-          ['Est. yield', (p: Listing) => (calc(p).yield! * 100).toFixed(1) + '%']
+          ['Ownership', (p: Listing) => p.own ?? '—'],
+          [
+            'Est. yield',
+            (p: Listing) => {
+              const y = calc(p).yield;
+              return y === undefined ? '—' : (y * 100).toFixed(1) + '%';
+            }
+          ]
         ] as [string, (p: Listing) => string][]))
   ];
   const cell = 'py-[8px] px-[10px] [border-top:1px_solid_var(--color-line)] text-left align-top';
@@ -273,7 +279,9 @@ export function Match() {
             <div>
               <h2 className="text-[34px]">{p.name}</h2>
               <div className="text-muted text-[13px] mt-[4px]">
-                {p.area} · {TYPES[p.type]} · {p.beds} bedroom{p.beds > 1 ? 's' : ''} · {p.sqm} m²
+                {p.area} · {TYPES[p.type]} · {p.beds} bedroom{p.beds > 1 ? 's' : ''}
+                {p.sqm ? ` · ${p.sqm} m²` : ''}
+                {p.land ? ` · ${p.land} m² land` : ''}
               </div>
             </div>
             <div className="text-right upto520:text-left">
@@ -336,36 +344,48 @@ export function Match() {
               </>
             ) : (
               <>
-                <div className={compareH}>
-                  <b className="text-[15px]">Price vs. {p.area} market</b>
-                  <span className="font-bold text-good">
-                    {c.diff > 0 ? `${big(c.diff)} below market (${c.pct}%)` : 'At market value'}
-                  </span>
-                </div>
-                <Bar
-                  label={`Market value of similar ${TYPES[p.type].toLowerCase()}s, ${p.sqm} m² at ${thb(c.sqmM!)}/m²`}
-                  value={big(c.m)}
-                  width={100}
-                />
-                <Bar
-                  us
-                  label={`${p.name}, ${thb(c.sqmP!)}/m²`}
-                  value={big(p.price)}
-                  width={Math.min(100, (100 * p.price) / c.m)}
-                />
-                <Bar
-                  gradFill
-                  label={
-                    <>
-                      Estimated gross rental yield: <b>{(c.yield! * 100).toFixed(1)}%</b> vs. about{' '}
-                      {(CONFIG.avgYield * 100).toFixed(1)}% typical
-                    </>
-                  }
-                  value={`${thb(p.rent!)}/mo`}
-                  width={Math.min(100, (100 * c.yield!) / 0.08)}
-                />
+                {/* the market comparison needs a floor area; without one the asking price stands alone */}
+                {c.known ? (
+                  <>
+                    <div className={compareH}>
+                      <b className="text-[15px]">Price vs. {p.area} market</b>
+                      <span className="font-bold text-good">
+                        {c.diff > 0 ? `${big(c.diff)} below market (${c.pct}%)` : 'At market value'}
+                      </span>
+                    </div>
+                    <Bar
+                      label={`Market value of similar ${TYPES[p.type].toLowerCase()}s, ${p.sqm} m² at ${thb(c.sqmM!)}/m²`}
+                      value={big(c.m)}
+                      width={100}
+                    />
+                    <Bar
+                      us
+                      label={`${p.name}, ${thb(c.sqmP!)}/m²`}
+                      value={big(p.price)}
+                      width={Math.min(100, (100 * p.price) / c.m)}
+                    />
+                  </>
+                ) : (
+                  <div className={compareH}>
+                    <b className="text-[15px]">Asking price</b>
+                    <span className="font-bold">{big(p.price)}</span>
+                  </div>
+                )}
+                {c.yield !== undefined && (
+                  <Bar
+                    gradFill
+                    label={
+                      <>
+                        Estimated gross rental yield: <b>{(c.yield * 100).toFixed(1)}%</b> vs. about{' '}
+                        {(CONFIG.avgYield * 100).toFixed(1)}% typical
+                      </>
+                    }
+                    value={`${thb(p.rent!)}/mo`}
+                    width={Math.min(100, (100 * c.yield) / 0.08)}
+                  />
+                )}
                 <div className={extras}>
-                  <span>{p.own}.</span>
+                  {p.own && <span>{p.own}.</span>}
                   {p.ex.map(e => (
                     <span key={e}>✓ {e}</span>
                   ))}

@@ -15,7 +15,7 @@ export function matches(l: AdminListing, f: ListingFilters) {
     (f.mode === 'all' || l.mode === f.mode) &&
     (f.area === 'all' || l.area === f.area) &&
     (f.status === 'all' || (f.status === 'live') === l.published) &&
-    (!q || `${l.name} ${l.id} ${l.area} ${l.line}`.toLowerCase().includes(q))
+    (!q || `${l.name} ${l.id} ${l.refCode ?? ''} ${l.area} ${l.line}`.toLowerCase().includes(q))
   );
 }
 
