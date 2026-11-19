@@ -1,7 +1,8 @@
 node_modules
 dist
+# secrets and local settings: never commit (public build settings live in elevare-frontend/.env.production)
 .env
 .env.local
+.vercel
 backend/uploads/
 *.log
-.vercel
