@@ -127,6 +127,7 @@ export function listingSeo(l: Listing): Seo {
           name: l.name,
           numberOfRooms: l.beds,
           numberOfBedrooms: l.beds,
+          ...(l.baths && {numberOfBathroomsTotal: l.baths}),
           ...(l.sqm && {floorSize: {'@type': 'QuantitativeValue', value: l.sqm, unitCode: 'MTK'}}),
           address: {'@type': 'PostalAddress', addressLocality: l.area, addressRegion: 'Phuket', addressCountry: 'TH'}
         }

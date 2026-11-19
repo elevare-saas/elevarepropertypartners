@@ -125,6 +125,7 @@ function CompareTable() {
     ],
     ['Area', p => p.area],
     ['Type', p => `${p.beds}-bed ${TYPES[p.type].toLowerCase()}`],
+    ['Bathrooms', p => (p.baths ? String(p.baths) : '—')],
     ['Size', p => (p.sqm ? p.sqm + ' m²' : '—')],
     ['Your must-haves', p => `${[...S.must].filter(m => p.am.includes(m)).length} of ${S.must.size}`],
     ['Match', p => score(p) + '%'],
@@ -280,6 +281,7 @@ export function Match() {
               <h2 className="text-[34px]">{p.name}</h2>
               <div className="text-muted text-[13px] mt-[4px]">
                 {p.area} · {TYPES[p.type]} · {p.beds} bedroom{p.beds > 1 ? 's' : ''}
+                {p.baths ? ` · ${p.baths} bathroom${p.baths > 1 ? 's' : ''}` : ''}
                 {p.sqm ? ` · ${p.sqm} m²` : ''}
                 {p.land ? ` · ${p.land} m² land` : ''}
               </div>

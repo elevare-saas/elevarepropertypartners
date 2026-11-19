@@ -213,7 +213,8 @@ Tip: use “Hide” instead if it may come back.`)
                     </Badge>
                   </div>
                   <div className="text-[13px] text-muted">
-                    {p.area} · {TYPES[p.type]} · {p.beds} bed{p.sqm ? ` · ${p.sqm} m²` : ''} ·{' '}
+                    {p.area} · {TYPES[p.type]} · {p.beds} bed{p.baths ? ` · ${p.baths} bath` : ''}
+                    {p.sqm ? ` · ${p.sqm} m²` : ''} ·{' '}
                     <span className="font-mono text-ink">
                       {thb(p.price)}
                       {p.mode === 'rent' ? '/mo' : ''}

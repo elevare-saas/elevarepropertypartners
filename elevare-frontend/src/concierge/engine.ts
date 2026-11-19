@@ -756,6 +756,7 @@ export function buildMessage() {
         ? `• ${h.name}, ${h.area}: ${thb(h.price)} per month (${S.lease} month${S.lease > 1 ? 's' : ''})`
         : `• ${[
             `${h.name}, ${h.area}: ${big(h.price)} asking`,
+            h.baths && `${h.baths} bath`,
             h.sqm && `${h.sqm} m²`,
             h.own?.toLowerCase(),
             c.yield !== undefined && `est. yield ${(c.yield * 100).toFixed(1)}%`

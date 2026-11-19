@@ -53,6 +53,7 @@ export interface ListingInput {
   area: string;
   type: PropType;
   beds: number;
+  baths: number | null;
   sqm: number | null;
   land: number | null;
   refCode: string;

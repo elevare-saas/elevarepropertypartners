@@ -52,6 +52,7 @@ const toListing = (r: Row) => ({
   beds: r.beds,
   ...(r.sqm != null && {sqm: r.sqm}),
   ...(r.landSqm != null && {land: r.landSqm}),
+  ...(r.baths != null && {baths: r.baths}),
   price: r.price,
   ...(r.own != null && {own: r.own}),
   ...(r.rent != null && {rent: r.rent}),
@@ -99,6 +100,12 @@ function validate(b: Record<string, unknown>) {
   if (!AREAS.includes(area as string)) e.push('Choose an area.');
   if (!TYPES.includes(type as string)) e.push('Choose a property type.');
   if (!Number.isInteger(beds) || beds < 1 || beds > 20) e.push('Bedrooms must be a whole number from 1 to 20.');
+  /* optional: blank → null */
+  let baths: number | null = null;
+  if (b.baths !== undefined && b.baths !== null && b.baths !== '') {
+    baths = int(b.baths);
+    if (!Number.isInteger(baths) || baths < 1 || baths > 20) e.push('Bathrooms must be a whole number from 1 to 20.');
+  }
   const sqm = optionalArea(b.sqm, 'Floor area', e),
     landSqm = optionalArea(b.land, 'Land area', e);
   const refCode = String(b.refCode ?? '')
@@ -136,6 +143,7 @@ function validate(b: Record<string, unknown>) {
       beds,
       sqm,
       landSqm,
+      baths,
       refCode: refCode || null,
       price,
       own,
@@ -168,7 +176,8 @@ const values = (v: ReturnType<typeof validate>['value']) => [
   v.photo,
   v.published,
   v.refCode,
-  v.landSqm
+  v.landSqm,
+  v.baths
 ];
 const refTaken = (e: unknown) => isUniqueViolation(e) && (e as {constraint?: string}).constraint === REF_CODE_INDEX;
 const REF_TAKEN = 'This reference code is already used by another property.';
@@ -204,8 +213,8 @@ adminListings.post('/', requirePage('properties'), async (req, res) => {
     try {
       const row = await one<Row>(
         `insert into listings (id, mode, name, area, type, beds, sqm, price, own, rent, am, ex, hue, line, photo,
-                               published, ref_code, land_sqm, updated_by)
-         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+                               published, ref_code, land_sqm, baths, updated_by)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
          returning ${LISTING_COLS}`,
         [randomBytes(4).toString('hex').toUpperCase(), ...values(v), req.user!.email]
       );
@@ -227,7 +236,7 @@ adminListings.put('/:id', requirePage('properties'), async (req, res) => {
     row = await one<Row>(
       `update listings set mode = $2, name = $3, area = $4, type = $5, beds = $6, sqm = $7, price = $8, own = $9,
               rent = $10, am = $11, ex = $12, hue = $13, line = $14, photo = $15, published = $16,
-              ref_code = $17, land_sqm = $18, updated_by = $19, updated_at = now()
+              ref_code = $17, land_sqm = $18, baths = $19, updated_by = $20, updated_at = now()
         where id = $1
         returning ${LISTING_COLS}`,
       [old.id, ...values(v), req.user!.email]

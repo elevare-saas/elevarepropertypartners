@@ -15,6 +15,7 @@ interface Draft {
   area: string;
   type: PropType;
   beds: string;
+  baths: string;
   sqm: string;
   land: string;
   refCode: string;
@@ -36,6 +37,7 @@ const fromListing = (l: AdminListing | null, suggestedRef: string): Draft =>
         area: l.area,
         type: l.type,
         beds: String(l.beds),
+        baths: l.baths ? String(l.baths) : '',
         sqm: l.sqm ? String(l.sqm) : '',
         land: l.land ? String(l.land) : '',
         refCode: l.refCode ?? '',
@@ -55,6 +57,7 @@ const fromListing = (l: AdminListing | null, suggestedRef: string): Draft =>
         area: '',
         type: 'villa',
         beds: '2',
+        baths: '',
         sqm: '',
         land: '',
         refCode: suggestedRef,
@@ -84,6 +87,7 @@ const toInput = (d: Draft): ListingInput => {
     area: d.area,
     type: d.type,
     beds: Number(d.beds),
+    baths: d.baths.trim() ? Number(d.baths) : null,
     sqm: d.sqm.trim() ? Number(d.sqm) : null,
     land: d.land.trim() ? Number(d.land) : null,
     refCode: d.refCode.trim().toUpperCase(),
@@ -255,6 +259,16 @@ export default function ListingEditor({
                 required
                 value={d.beds}
                 onChange={e => set('beds', e.target.value)}
+              />
+            </Field>
+            <Field label="Bathrooms (optional)">
+              <Input
+                type="number"
+                min={1}
+                max={20}
+                value={d.baths}
+                onChange={e => set('baths', e.target.value)}
+                placeholder="e.g. 2"
               />
             </Field>
             <Field label="Floor area (m², optional)" hint="Indoor living / built-up area.">

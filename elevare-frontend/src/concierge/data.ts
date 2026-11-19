@@ -21,6 +21,8 @@ export interface Listing {
   area: string;
   type: PropType;
   beds: number;
+  /* optional */
+  baths?: number;
   /* floor (built-up) area in m²: optional, so check before using */
   sqm?: number;
   /* plot size in m²: optional */

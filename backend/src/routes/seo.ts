@@ -93,6 +93,7 @@ function listingJsonLd(l: ListingRow) {
       name: l.name,
       numberOfRooms: l.beds,
       numberOfBedrooms: l.beds,
+      ...(l.baths != null && {numberOfBathroomsTotal: l.baths}),
       ...(l.sqm != null && {floorSize: {'@type': 'QuantitativeValue', value: l.sqm, unitCode: 'MTK'}}),
       address: {'@type': 'PostalAddress', addressLocality: l.area, addressRegion: 'Phuket', addressCountry: 'TH'}
     }
@@ -106,7 +107,7 @@ const breadcrumbs = (items: [string, string][]) => ({
 });
 
 const cardHtml = (l: ListingRow) =>
-  `<li><a href="${esc(listingPath(l))}">${esc(l.name)}</a> · ${esc(l.area)} · ${l.beds} bed ${esc(TYPE_LABEL[l.type] ?? l.type)}${area(l, ' · ')} · ${esc(priceText(l))}</li>`;
+  `<li><a href="${esc(listingPath(l))}">${esc(l.name)}</a> · ${esc(l.area)} · ${l.beds} bed${l.baths != null ? ` · ${l.baths} bath` : ''} ${esc(TYPE_LABEL[l.type] ?? l.type)}${area(l, ' · ')} · ${esc(priceText(l))}</li>`;
 
 async function pageFor(path: string): Promise<Page | null> {
   if (path === '/') return null; /* index.html already carries the home page's tags */

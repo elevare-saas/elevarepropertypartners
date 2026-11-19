@@ -21,6 +21,7 @@ const isListing = (l: unknown): l is Listing => {
     /* floor area, land area, ownership and estimated rent are optional (the site hides what's missing) */
     (x.sqm === undefined || pos(x.sqm)) &&
     (x.land === undefined || pos(x.land)) &&
+    (x.baths === undefined || pos(x.baths)) &&
     (x.own === undefined || typeof x.own === 'string') &&
     (x.rent === undefined || pos(x.rent)) &&
     Array.isArray(x.am) &&
