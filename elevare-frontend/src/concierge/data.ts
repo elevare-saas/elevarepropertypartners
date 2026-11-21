@@ -37,6 +37,8 @@ export interface Listing {
   line: string;
   /* uploaded (/uploads/…) or stock (/photos/…) photo */
   photo?: string;
+  /* the whole gallery, cover (= photo) first */
+  photos?: string[];
 }
 
 export const CONFIG = {

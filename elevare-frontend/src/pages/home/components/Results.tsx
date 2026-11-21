@@ -60,6 +60,7 @@ import {
 } from './ui';
 import {cx} from '@/lib/format';
 import {WhatsAppIcon} from '@/components/site/SiteChrome';
+import Gallery from '@/components/site/Gallery';
 
 export function Matching() {
   const steps = [
@@ -270,7 +271,7 @@ export function Match() {
 
       <article className="rounded-[18px] overflow-hidden bg-surface border border-line">
         <div className="aspect-[16/8] max-w-full relative">
-          <Art p={p} />
+          <Gallery key={p.id} listing={p} />
           <span className="absolute top-[12px] left-[12px] bg-[rgba(5,4,9,.75)] text-white rounded-full py-[5px] px-[12px] text-[12px] font-bold backdrop-blur-[4px]">
             {top.s}% match
           </span>

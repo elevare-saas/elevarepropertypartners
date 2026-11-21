@@ -77,7 +77,7 @@ function listingJsonLd(l: ListingRow) {
     name: l.name,
     url,
     description: l.line,
-    image: l.photo ? photoUrl(l.photo) : abs('/og/elevare-og.jpg'),
+    image: l.photos.length ? l.photos.map(photoUrl) : abs('/og/elevare-og.jpg'),
     datePosted: l.createdAt.toISOString(),
     offers: {
       '@type': 'Offer',

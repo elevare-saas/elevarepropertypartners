@@ -32,11 +32,22 @@ export interface ListingRow {
   ex: string[];
   hue: number;
   line: string;
-  photo: string | null;
+  photo: string | null; // the cover: always photos[0] (kept for older readers)
+  photos: string[]; // gallery in display order, cover first
+  draft: boolean; // waiting for review (e.g. written by AI); never public
+  ai: ListingAi | null; // what the AI was given and what it wants checked
   published: boolean;
   createdAt: Date;
   updatedAt: Date;
   updatedBy: string | null;
+}
+
+/* stored with an AI-written draft: the staff notes it started from, and the fields a person must check */
+export interface ListingAi {
+  notes: string;
+  check: string[];
+  model?: string;
+  generatedAt?: string;
 }
 
 /* bigint columns (prices) come back as numbers: every price fits easily in a JS number */
@@ -67,7 +78,7 @@ export const isUuid = (id: unknown): id is string => typeof id === 'string' && U
 
 /* column lists with camelCase names, for SELECT … and RETURNING … */
 export const LISTING_COLS = `id, seq, mode, name, area, type, beds, baths, sqm, land_sqm as "landSqm", ref_code as "refCode",
-  price, own, rent, am, ex, hue, line, photo, published, created_at as "createdAt", updated_at as "updatedAt",
+  price, own, rent, am, ex, hue, line, photo, photos, draft, ai, published, created_at as "createdAt", updated_at as "updatedAt",
   updated_by as "updatedBy"`;
 /* the unique index on reference codes, to tell "code taken" from an id collision */
 export const REF_CODE_INDEX = 'listings_ref_code';
@@ -217,6 +228,18 @@ alter table listings add column if not exists land_sqm integer;
 alter table listings add column if not exists baths integer;
 alter table listings add column if not exists ref_code text;
 create unique index if not exists listings_ref_code on listings (upper(ref_code)) where ref_code is not null;
+-- photo gallery (cover first; "photo" mirrors photos[1]), drafts waiting for review, and AI notes
+alter table listings add column if not exists photos text[] not null default '{}';
+update listings set photos = array[photo] where photo is not null and photos = '{}';
+alter table listings add column if not exists draft boolean not null default false;
+alter table listings add column if not exists ai jsonb;
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'listings_draft_hidden') then
+    update listings set published = false where draft;
+    alter table listings add constraint listings_draft_hidden check (not (draft and published));
+  end if;
+end $$;
 
 create table if not exists leads (
   id uuid primary key default gen_random_uuid(),

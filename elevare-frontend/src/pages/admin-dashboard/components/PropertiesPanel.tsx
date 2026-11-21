@@ -79,7 +79,7 @@ Tip: use “Hide” instead if it may come back.`)
         )}
       </div>
 
-      <div className="grid grid-cols-4 upto600:grid-cols-2 gap-[12px]">
+      <div className="grid grid-cols-5 upto759:grid-cols-3 upto600:grid-cols-2 gap-[12px]">
         {stats.map(({label, value}) => (
           <Card key={label} className="py-[14px] px-[16px]">
             <div className="text-[12px] text-muted">{label}</div>
@@ -116,8 +116,9 @@ Tip: use “Hide” instead if it may come back.`)
           onChange={e => setFilter('status', e.target.value as ListingFilters['status'])}
           aria-label="Status"
         >
-          <option value="all">Live & hidden</option>
+          <option value="all">Every status</option>
           <option value="live">Live</option>
+          <option value="draft">Drafts to review</option>
           <option value="hidden">Hidden</option>
         </Select>
         <Select value={filters.area} onChange={e => setFilter('area', e.target.value)} aria-label="Area">
@@ -207,7 +208,14 @@ Tip: use “Hide” instead if it may come back.`)
                       </span>
                     )}
                     <b className="text-[15.5px]">{p.name}</b>
-                    {p.published ? <Badge tone="good">Live</Badge> : <Badge>Hidden</Badge>}
+                    {p.published ? (
+                      <Badge tone="good">Live</Badge>
+                    ) : p.draft ? (
+                      <Badge tone="violet">Draft · review</Badge>
+                    ) : (
+                      <Badge>Hidden</Badge>
+                    )}
+                    {p.photos.length > 1 && <span className="text-[12px] text-faint">{p.photos.length} photos</span>}
                     <Badge tone={p.mode === 'rent' ? 'violet' : 'pink'}>
                       {p.mode === 'rent' ? 'For rent' : 'For sale'}
                     </Badge>
@@ -233,12 +241,15 @@ Tip: use “Hide” instead if it may come back.`)
                 >
                   {editable ? (
                     <>
-                      <Btn size="sm" onClick={() => setEditing(p)}>
-                        Edit
+                      <Btn size="sm" kind={p.draft ? 'primary' : undefined} onClick={() => setEditing(p)}>
+                        {p.draft ? 'Review' : 'Edit'}
                       </Btn>
-                      <Btn size="sm" disabled={busy} onClick={() => void togglePublished(p)}>
-                        {p.published ? 'Hide' : 'Publish'}
-                      </Btn>
+                      {/* a draft is approved from the editor, after a person has checked it */}
+                      {!p.draft && (
+                        <Btn size="sm" disabled={busy} onClick={() => void togglePublished(p)}>
+                          {p.published ? 'Hide' : 'Publish'}
+                        </Btn>
+                      )}
                       <Btn size="sm" kind="danger" disabled={busy} onClick={() => confirmRemove(p)}>
                         Delete
                       </Btn>

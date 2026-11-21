@@ -60,12 +60,15 @@ const toListing = (r: Row) => ({
   ex: r.ex,
   hue: r.hue,
   line: r.line,
-  ...(r.photo && {photo: r.photo})
+  ...(r.photos[0] && {photo: r.photos[0], photos: r.photos})
 });
-/* the reference code is internal: admin responses only */
+/* the reference code and AI notes are internal: admin responses only */
 const toAdmin = (r: Row) => ({
   ...toListing(r),
+  photos: r.photos,
   refCode: r.refCode,
+  draft: r.draft,
+  ai: r.ai,
   published: r.published,
   createdAt: r.createdAt,
   updatedAt: r.updatedAt,
@@ -73,8 +76,9 @@ const toAdmin = (r: Row) => ({
 });
 const get = (id: string) => one<Row>(`select ${LISTING_COLS} from listings where id = $1`, [id]);
 
-/* uploaded photos are deleted with their listing; bundled /photos/ ones stay */
-const removePhotos = (rows: Pick<Row, 'photo'>[]) => Promise.all(rows.map(r => deletePhoto(r.photo)));
+/* uploaded photos are deleted with their listing (or when taken out of its gallery); bundled /photos/ ones stay */
+const removePhotos = (urls: string[]) => Promise.all([...new Set(urls)].map(deletePhoto));
+export const MAX_PHOTOS = 20;
 
 const int = (v: unknown) => (typeof v === 'number' ? v : Number(v));
 /* an optional area in m²: blank → null */
@@ -132,7 +136,12 @@ function validate(b: Record<string, unknown>) {
       if (!Number.isSafeInteger(rent) || rent <= 0) e.push('Estimated monthly rent must be a whole number above 0.');
     }
   }
-  const photo = isValidPhoto(b.photo) ? b.photo : null;
+  /* the gallery, cover first; an older client may still send just `photo` */
+  const sent = Array.isArray(b.photos) ? b.photos : b.photo ? [b.photo] : [];
+  const photos = [...new Set(sent.filter(isValidPhoto))];
+  if (photos.length > MAX_PHOTOS) e.push(`Up to ${MAX_PHOTOS} photos per property.`);
+  /* a draft waits for review: it is never on the website */
+  const draft = b.draft === true;
   return {
     errors: e,
     value: {
@@ -152,8 +161,9 @@ function validate(b: Record<string, unknown>) {
       ex,
       hue: Number.isFinite(hue) ? ((Math.round(hue) % 360) + 360) % 360 : 260,
       line,
-      photo,
-      published: b.published !== false
+      photos,
+      draft,
+      published: !draft && b.published !== false
     }
   };
 }
@@ -173,11 +183,13 @@ const values = (v: ReturnType<typeof validate>['value']) => [
   v.ex,
   v.hue,
   v.line,
-  v.photo,
+  v.photos[0] ?? null,
   v.published,
   v.refCode,
   v.landSqm,
-  v.baths
+  v.baths,
+  v.photos,
+  v.draft
 ];
 const refTaken = (e: unknown) => isUniqueViolation(e) && (e as {constraint?: string}).constraint === REF_CODE_INDEX;
 const REF_TAKEN = 'This reference code is already used by another property.';
@@ -213,8 +225,8 @@ adminListings.post('/', requirePage('properties'), async (req, res) => {
     try {
       const row = await one<Row>(
         `insert into listings (id, mode, name, area, type, beds, sqm, price, own, rent, am, ex, hue, line, photo,
-                               published, ref_code, land_sqm, baths, updated_by)
-         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+                               published, ref_code, land_sqm, baths, photos, draft, updated_by)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
          returning ${LISTING_COLS}`,
         [randomBytes(4).toString('hex').toUpperCase(), ...values(v), req.user!.email]
       );
@@ -236,7 +248,8 @@ adminListings.put('/:id', requirePage('properties'), async (req, res) => {
     row = await one<Row>(
       `update listings set mode = $2, name = $3, area = $4, type = $5, beds = $6, sqm = $7, price = $8, own = $9,
               rent = $10, am = $11, ex = $12, hue = $13, line = $14, photo = $15, published = $16,
-              ref_code = $17, land_sqm = $18, baths = $19, updated_by = $20, updated_at = now()
+              ref_code = $17, land_sqm = $18, baths = $19, photos = $20, draft = $21, updated_by = $22,
+              updated_at = now()
         where id = $1
         returning ${LISTING_COLS}`,
       [old.id, ...values(v), req.user!.email]
@@ -245,27 +258,29 @@ adminListings.put('/:id', requirePage('properties'), async (req, res) => {
     if (refTaken(e)) return res.status(409).json({error: REF_TAKEN});
     throw e;
   }
-  if (old.photo !== v.photo) await removePhotos([old]);
+  await removePhotos(old.photos.filter(p => !v.photos.includes(p)));
   res.json({listing: toAdmin(row!)});
 });
 
+/* publishing a draft approves it: it stops being a draft */
 adminListings.patch('/:id/published', requirePage('properties'), async (req, res) => {
   const old = await get(String(req.params.id));
   if (!old) return res.status(404).json({error: 'Listing not found.'});
   const published = !!req.body?.published;
   const row = await one<Row>(
-    `update listings set published = $2, updated_by = $3, updated_at = now() where id = $1 returning ${LISTING_COLS}`,
+    `update listings set published = $2, draft = draft and not $2, updated_by = $3, updated_at = now()
+      where id = $1 returning ${LISTING_COLS}`,
     [old.id, published, req.user!.email]
   );
   res.json({listing: toAdmin(row!)});
 });
 
 adminListings.delete('/:id', requirePage('properties'), async (req, res) => {
-  const old = await one<Pick<Row, 'photo'>>('delete from listings where id = $1 returning photo', [
+  const old = await one<Pick<Row, 'photos'>>('delete from listings where id = $1 returning photos', [
     String(req.params.id)
   ]);
   if (!old) return res.status(404).json({error: 'Listing not found.'});
-  await removePhotos([old]);
+  await removePhotos(old.photos);
   res.json({ok: true});
 });
 
@@ -273,11 +288,11 @@ adminListings.delete('/:id', requirePage('properties'), async (req, res) => {
 adminListings.post('/delete', requirePage('properties'), async (req, res) => {
   const {ids, all} = req.body ?? {};
   let deleted;
-  if (all === true) deleted = await query<Pick<Row, 'photo'>>('delete from listings returning photo');
+  if (all === true) deleted = await query<Pick<Row, 'photos'>>('delete from listings returning photos');
   else if (Array.isArray(ids) && ids.length && ids.length <= 1000 && ids.every(i => typeof i === 'string'))
-    deleted = await query<Pick<Row, 'photo'>>('delete from listings where id = any($1) returning photo', [ids]);
+    deleted = await query<Pick<Row, 'photos'>>('delete from listings where id = any($1) returning photos', [ids]);
   else return res.status(400).json({error: 'Choose the properties to delete.'});
-  await removePhotos(deleted.rows);
+  await removePhotos(deleted.rows.flatMap(r => r.photos));
   res.json({deleted: deleted.rowCount ?? deleted.rows.length});
 });
 

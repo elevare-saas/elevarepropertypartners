@@ -4,7 +4,7 @@ import type {AdminListing} from '@/types/admin';
 export interface ListingFilters {
   query: string;
   mode: 'all' | 'rent' | 'buy';
-  status: 'all' | 'live' | 'hidden';
+  status: 'all' | 'live' | 'hidden' | 'draft';
   area: string;
 }
 const INITIAL: ListingFilters = {query: '', mode: 'all', status: 'all', area: 'all'};
@@ -14,7 +14,10 @@ export function matches(l: AdminListing, f: ListingFilters) {
   return (
     (f.mode === 'all' || l.mode === f.mode) &&
     (f.area === 'all' || l.area === f.area) &&
-    (f.status === 'all' || (f.status === 'live') === l.published) &&
+    (f.status === 'all' ||
+      (f.status === 'live' && l.published) ||
+      (f.status === 'hidden' && !l.published && !l.draft) ||
+      (f.status === 'draft' && l.draft)) &&
     (!q || `${l.name} ${l.id} ${l.refCode ?? ''} ${l.area} ${l.line}`.toLowerCase().includes(q))
   );
 }
@@ -31,7 +34,8 @@ export function useListingFilters(listings: AdminListing[] | undefined) {
     return [
       {label: 'Live for rent', value: all.filter(l => l.published && l.mode === 'rent').length},
       {label: 'Live for sale', value: all.filter(l => l.published && l.mode === 'buy').length},
-      {label: 'Hidden', value: all.filter(l => !l.published).length},
+      {label: 'Drafts to review', value: all.filter(l => l.draft).length},
+      {label: 'Hidden', value: all.filter(l => !l.published && !l.draft).length},
       {label: 'Total', value: all.length}
     ];
   }, [listings]);

@@ -40,10 +40,22 @@ export interface AdminUser {
 export interface AdminListing extends Listing {
   /* private reference code, e.g. ELV-001: dashboard only, never on the website */
   refCode: string | null;
+  photos: string[];
+  /* waiting for review (e.g. written by AI): never on the website until published */
+  draft: boolean;
+  ai: ListingAi | null;
   published: boolean;
   createdAt: string;
   updatedAt: string;
   updatedBy: string | null;
+}
+
+/* kept with an AI-written draft: the staff notes it started from and the fields a person must check */
+export interface ListingAi {
+  notes: string;
+  check: string[];
+  model?: string;
+  generatedAt?: string;
 }
 
 /* payload for creating or saving a listing */
@@ -63,8 +75,10 @@ export interface ListingInput {
   am: string[];
   ex: string[];
   line: string;
-  photo: string | null;
+  /* cover first, up to 20 */
+  photos: string[];
   hue: number;
+  draft: boolean;
   published: boolean;
 }
 

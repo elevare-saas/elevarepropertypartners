@@ -14,7 +14,7 @@ sign-in and roles for the admin dashboard (`/admin-login`, `/admin-dashboard` in
 | `roles` | `name`, `description`, `pages` (page keys), `system` (the one built-in Super Admin role) |
 | `admin_roles` | which employee has which roles (several allowed) |
 | `sessions` | one per sign-in: `token_hash` (SHA-256 of the cookie token), `admin_id`, `expires_at` (expired ones are cleared on sign-in) |
-| `listings` | the properties: `id` (listing id), `seq` (display order), the website's listing fields, `published`, `updated_by`… |
+| `listings` | the properties: `id` (listing id), `seq` (display order), the website's listing fields, `photos` (gallery, cover first; `photo` mirrors the cover), `draft` (waiting for review, never public), `ai` (notes an AI draft was written from + fields to check), `published`, `updated_by`… |
 | `leads` | website enquiries and viewing requests: `status` new / contacted / closed, the form fields in `data` (jsonb) |
 | `app_meta` | small flags, e.g. that the sample listings were loaded once |
 
@@ -119,9 +119,9 @@ the dashboard sidebar. It then appears in Roles & access, granted to no role unt
 | `POST /api/auth/logout` · `GET /api/auth/me` · `POST /api/auth/password` | signed in | |
 | `GET /api/listings` · `GET /api/listings/:id` | public | published listings, in the shape the website uses |
 | `GET /api/admin/listings` | all roles | every listing, including hidden ones |
-| `POST /api/admin/listings` · `PUT/DELETE /api/admin/listings/:id` · `PATCH …/:id/published` | Properties page | |
+| `POST /api/admin/listings` · `PUT/DELETE /api/admin/listings/:id` · `PATCH …/:id/published` | Properties page | up to 20 `photos`; a `draft` is always hidden, and publishing it approves it |
 | `POST /api/admin/listings/delete` `{ids}` or `{all: true}` | Properties page | bulk delete → `{deleted}` |
-| `POST /api/admin/listings/photo` (multipart `photo`) | Properties page | JPG/PNG/WebP ≤ 8 MB → `/uploads/…` |
+| `POST /api/admin/listings/photo` (multipart `photo`) | Properties page | one JPG/PNG/WebP ≤ 8 MB per request (the dashboard sends several one by one) → its URL |
 | `POST /api/leads` | public (rate-limited) | each lead → `leads`, an email to `LEADS_NOTIFY_EMAIL`, and `LEAD_WEBHOOK_URL` |
 | `GET /sitemap.xml` | public | home and every published property, with hreflang |
 | `GET /api/admin/leads?status=&limit=&before=` · `PATCH /api/admin/leads/:id` `{status}` | Super Admin (until a Leads page exists) | status: new / contacted / closed |

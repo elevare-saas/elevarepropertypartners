@@ -25,10 +25,12 @@ interface Draft {
   am: string[];
   ex: string;
   line: string;
-  photo: string;
+  photos: string[];
   hue: number;
+  draft: boolean;
   published: boolean;
 }
+export const MAX_PHOTOS = 20;
 const fromListing = (l: AdminListing | null, suggestedRef: string): Draft =>
   l
     ? {
@@ -47,8 +49,9 @@ const fromListing = (l: AdminListing | null, suggestedRef: string): Draft =>
         am: l.am,
         ex: l.ex.join('\n'),
         line: l.line,
-        photo: l.photo || '',
+        photos: l.photos?.length ? l.photos : l.photo ? [l.photo] : [],
         hue: l.hue,
+        draft: l.draft,
         published: l.published
       }
     : {
@@ -67,8 +70,9 @@ const fromListing = (l: AdminListing | null, suggestedRef: string): Draft =>
         am: [],
         ex: '',
         line: '',
-        photo: '',
+        photos: [],
         hue: Math.floor(Math.random() * 360),
+        draft: false,
         published: true
       };
 const OWNERSHIP = [
@@ -100,8 +104,10 @@ const toInput = (d: Draft): ListingInput => {
       .map(s => s.trim())
       .filter(Boolean),
     line: d.line.trim(),
-    photo: d.photo || null,
+    photos: d.photos,
     hue: d.hue,
+    /* ticking "Show on the website" approves a draft */
+    draft: d.draft && !d.published,
     published: d.published
   };
 };
@@ -142,12 +148,40 @@ export default function ListingEditor({
   );
   const uploading = useMutation(listingsApi.uploadPhoto);
   const error = saving.error || uploading.error;
+  /* "2 of 5" while several photos upload one after another (each request must stay small) */
+  const [progress, setProgress] = useState<string | null>(null);
+  /* fields the AI asked a person to check */
+  const check = new Set(listing?.draft ? (listing.ai?.check ?? []) : []);
+  const label = (key: string, text: string) =>
+    check.has(key) ? (
+      <>
+        {text} <span className="text-pink font-semibold">· please check</span>
+      </>
+    ) : (
+      text
+    );
 
-  async function upload(f: File) {
-    const r = await uploading.run(f);
-    if (r.ok) set('photo', r.data);
+  async function upload(files: File[]) {
+    const room = MAX_PHOTOS - d.photos.length;
+    const batch = files.slice(0, room);
+    for (const [i, f] of batch.entries()) {
+      setProgress(`${i + 1} of ${batch.length}`);
+      const r = await uploading.run(f);
+      if (!r.ok) break;
+      setD(x => ({...x, photos: [...x.photos, r.data]}));
+    }
+    setProgress(null);
     if (file.current) file.current.value = '';
   }
+  /* move a photo by one place; index 0 is the cover */
+  const move = (i: number, by: number) =>
+    setD(x => {
+      const p = [...x.photos];
+      [p[i], p[i + by]] = [p[i + by], p[i]];
+      return {...x, photos: p};
+    });
+  const makeCover = (i: number) => setD(x => ({...x, photos: [x.photos[i], ...x.photos.filter((_, j) => j !== i)]}));
+  const removeAt = (i: number) => setD(x => ({...x, photos: x.photos.filter((_, j) => j !== i)}));
 
   async function save(e: FormEvent) {
     e.preventDefault();
@@ -179,6 +213,18 @@ export default function ListingEditor({
     >
       <form id="listing-form" onSubmit={save} className="grid gap-[18px]">
         <div id="editor-error">{error && <Alert>{error}</Alert>}</div>
+        {listing?.draft && (
+          <Alert kind="info">
+            <b>Draft: not on the website.</b> Check every detail
+            {check.size ? ', especially the ones marked “please check”' : ''}, then tick “Approve and show on the
+            website” and save.
+            {listing.ai?.notes && (
+              <span className="block mt-[6px] text-[12.5px]">
+                Notes it was written from: <i>{listing.ai.notes}</i>
+              </span>
+            )}
+          </Alert>
+        )}
         <fieldset disabled={readOnly} className="border-0 p-0 m-0 grid gap-[18px] min-w-0">
           <div className="grid grid-cols-2 gap-[8px]" role="radiogroup" aria-label="Rent or sale">
             {(['rent', 'buy'] as Mode[]).map(m => (
@@ -200,7 +246,7 @@ export default function ListingEditor({
 
           <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)] upto480:grid-cols-1 gap-[14px] items-start">
             <Field
-              label="Listing title (shown on the website)"
+              label={label('name', 'Listing title (shown on the website)')}
               hint="Describe the home; don't use the project or building name."
             >
               <div className="flex gap-[8px]">
@@ -242,7 +288,7 @@ export default function ListingEditor({
                 ))}
               </Select>
             </Field>
-            <Field label="Type">
+            <Field label={label('type', 'Type')}>
               <Select value={d.type} onChange={e => set('type', e.target.value as PropType)}>
                 {Object.entries(TYPES).map(([k, l]) => (
                   <option key={k} value={k}>
@@ -251,7 +297,7 @@ export default function ListingEditor({
                 ))}
               </Select>
             </Field>
-            <Field label="Bedrooms">
+            <Field label={label('beds', 'Bedrooms')}>
               <Input
                 type="number"
                 min={1}
@@ -261,7 +307,7 @@ export default function ListingEditor({
                 onChange={e => set('beds', e.target.value)}
               />
             </Field>
-            <Field label="Bathrooms (optional)">
+            <Field label={label('baths', 'Bathrooms (optional)')}>
               <Input
                 type="number"
                 min={1}
@@ -271,7 +317,7 @@ export default function ListingEditor({
                 placeholder="e.g. 2"
               />
             </Field>
-            <Field label="Floor area (m², optional)" hint="Indoor living / built-up area.">
+            <Field label={label('sqm', 'Floor area (m², optional)')} hint="Indoor living / built-up area.">
               <Input
                 type="number"
                 min={10}
@@ -280,7 +326,7 @@ export default function ListingEditor({
                 placeholder="e.g. 220"
               />
             </Field>
-            <Field label="Land area (m², optional)" hint="Plot size, mainly for villas and houses.">
+            <Field label={label('land', 'Land area (m², optional)')} hint="Plot size, mainly for villas and houses.">
               <Input
                 type="number"
                 min={10}
@@ -342,7 +388,7 @@ export default function ListingEditor({
             </Field>
           )}
 
-          <Field label="Short description" hint="One or two sentences, shown on the listing card.">
+          <Field label={label('line', 'Short description')} hint="One or two sentences, shown on the listing card.">
             <Textarea
               value={d.line}
               onChange={e => set('line', e.target.value)}
@@ -354,7 +400,8 @@ export default function ListingEditor({
 
           <fieldset className="border-0 p-0 m-0 grid gap-[8px] min-w-0">
             <legend className="text-[12px] text-muted font-semibold mb-[6px] p-0">
-              Features <span className="font-normal text-faint">(used to match visitors to this home)</span>
+              {label('am', 'Features')}{' '}
+              <span className="font-normal text-faint">(used to match visitors to this home)</span>
             </legend>
             <div className="flex flex-wrap gap-[8px]">
               {Object.entries(AMEN).map(([k, l]) => {
@@ -374,7 +421,7 @@ export default function ListingEditor({
             </div>
           </fieldset>
 
-          <Field label="What’s included" hint="One per line, e.g. “Pool & garden care”. Up to 8.">
+          <Field label={label('ex', 'What’s included')} hint="One per line, e.g. “Pool & garden care”. Up to 8.">
             <Textarea
               value={d.ex}
               onChange={e => set('ex', e.target.value)}
@@ -383,43 +430,94 @@ export default function ListingEditor({
             />
           </Field>
 
-          <div className="grid gap-[8px]">
-            <span className="text-[12px] text-muted font-semibold">Photo</span>
-            <div className="grid grid-cols-[180px_1fr] upto480:grid-cols-1 gap-[14px] items-center">
-              <PropertyImage
-                listing={{photo: d.photo ?? undefined}}
-                className="w-full aspect-[4/3] rounded-[12px] border border-line bg-surface-2"
-              />
-              <div className="grid gap-[8px] justify-items-start">
-                {!readOnly && (
-                  <>
-                    <input
-                      ref={file}
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp"
-                      hidden
-                      onChange={e => {
-                        const f = e.target.files?.[0];
-                        if (f) void upload(f);
-                      }}
-                    />
-                    <Btn size="sm" disabled={uploading.pending} onClick={() => file.current?.click()}>
-                      {uploading.pending ? 'Uploading…' : d.photo ? 'Replace photo' : 'Upload photo'}
-                    </Btn>
-                    {d.photo && (
-                      <Btn size="sm" kind="quiet" onClick={() => set('photo', '')}>
-                        Remove photo
-                      </Btn>
-                    )}
-                  </>
-                )}
-                <span className="text-[11.5px] text-faint">
-                  {d.photo
-                    ? 'JPG, PNG or WebP, up to 8 MB. Landscape works best.'
-                    : 'No photo yet: the website shows a stock photo for this type of home.'}
+          <div className="grid gap-[10px]">
+            <div className="flex items-center justify-between gap-[10px] flex-wrap">
+              <span className="text-[12px] text-muted font-semibold">
+                Photos{' '}
+                <span className="font-normal text-faint">
+                  ({d.photos.length} of {MAX_PHOTOS}; the first is the cover)
                 </span>
-              </div>
+              </span>
+              {!readOnly && (
+                <>
+                  <input
+                    ref={file}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    multiple
+                    hidden
+                    onChange={e => {
+                      const files = [...(e.target.files ?? [])];
+                      if (files.length) void upload(files);
+                    }}
+                  />
+                  <Btn
+                    size="sm"
+                    disabled={uploading.pending || d.photos.length >= MAX_PHOTOS}
+                    onClick={() => file.current?.click()}
+                  >
+                    {progress ? `Uploading ${progress}…` : '+ Add photos'}
+                  </Btn>
+                </>
+              )}
             </div>
+            {d.photos.length ? (
+              <ul className="list-none m-0 p-0 grid grid-cols-3 upto480:grid-cols-2 gap-[10px]">
+                {d.photos.map((ph, i) => (
+                  <li key={ph} className="grid gap-[6px]">
+                    <span className="relative block">
+                      <PropertyImage
+                        listing={{photo: ph}}
+                        alt={`Photo ${i + 1}`}
+                        className="w-full aspect-[4/3] rounded-[10px] border border-line bg-surface-2"
+                      />
+                      {i === 0 && (
+                        <span className="absolute top-[6px] left-[6px] bg-[rgba(5,4,9,.75)] text-white rounded-full py-[2px] px-[8px] text-[11px] font-bold">
+                          Cover
+                        </span>
+                      )}
+                    </span>
+                    {!readOnly && (
+                      <span className="flex gap-[4px] flex-wrap">
+                        <Btn
+                          size="sm"
+                          kind="quiet"
+                          disabled={i === 0}
+                          onClick={() => move(i, -1)}
+                          aria-label="Move left"
+                        >
+                          ←
+                        </Btn>
+                        <Btn
+                          size="sm"
+                          kind="quiet"
+                          disabled={i === d.photos.length - 1}
+                          onClick={() => move(i, 1)}
+                          aria-label="Move right"
+                        >
+                          →
+                        </Btn>
+                        {i > 0 && (
+                          <Btn size="sm" kind="quiet" onClick={() => makeCover(i)}>
+                            Cover
+                          </Btn>
+                        )}
+                        <Btn size="sm" kind="quiet" onClick={() => removeAt(i)} aria-label={`Remove photo ${i + 1}`}>
+                          ✕
+                        </Btn>
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <span className="text-[11.5px] text-faint">
+                No photos yet: the website shows a “Photo coming soon” placeholder.
+              </span>
+            )}
+            <span className="text-[11.5px] text-faint">
+              JPG, PNG or WebP. You can pick several at once. Landscape works best.
+            </span>
           </div>
 
           <label className="flex items-center gap-[10px] cursor-pointer text-[14px] bg-surface border border-line rounded-[12px] py-[12px] px-[14px]">
@@ -430,9 +528,11 @@ export default function ListingEditor({
               className="w-[18px] h-[18px] accent-[#E05CB5]"
             />
             <span>
-              <b>Show on the website</b>
+              <b>{d.draft ? 'Approve and show on the website' : 'Show on the website'}</b>
               <br />
-              <span className="text-[12px] text-muted">Leave unticked to save it as hidden.</span>
+              <span className="text-[12px] text-muted">
+                {d.draft ? 'Leave unticked to keep it as a draft.' : 'Leave unticked to save it as hidden.'}
+              </span>
             </span>
           </label>
         </fieldset>

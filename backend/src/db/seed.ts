@@ -35,8 +35,9 @@ export async function seedListings() {
       for (const l of seed as SeedListing[])
         await client.query(
           `insert into listings (id, mode, name, area, type, beds, sqm, price, own, rent, am, ex, hue, line, photo,
-                                 published, updated_by)
-           values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, true, 'seed')`,
+                                 photos, published, updated_by)
+           values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
+                   case when $15::text is null then '{}'::text[] else array[$15::text] end, true, 'seed')`,
           [
             l.id,
             l.mode,
