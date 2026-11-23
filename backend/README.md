@@ -118,7 +118,7 @@ the dashboard sidebar. It then appears in Roles & access, granted to no role unt
 | Method & path | Who | |
 |---|---|---|
 | `GET /api/health` | public | API and database status |
-| `POST /api/auth/login` `{email,password}` | anyone | sets an httpOnly session cookie (7 days) |
+| `POST /api/auth/login` `{email,password}` | anyone | sets an httpOnly session cookie: it ends when the browser closes (closing a tab keeps it), or after `SESSION_TTL_DAYS` (7) |
 | `POST /api/auth/logout` · `GET /api/auth/me` · `POST /api/auth/password` | signed in | |
 | `GET /api/listings` · `GET /api/listings/:id` | public | published listings, in the shape the website uses |
 | `GET /api/admin/listings` | all roles | every listing, including hidden ones |

@@ -32,7 +32,9 @@ export async function startSession(res: Response, adminId: string) {
   ]);
   /* expired sessions are cleared now and then, on sign-in (no background job needed) */
   if (Math.random() < 0.1) await query('delete from sessions where expires_at < now()').catch(() => {});
-  res.cookie(cookieName, token, {...cookieOptions(), expires: expiresAt});
+  /* no expiry on the cookie: the browser deletes it when it closes (closing a tab keeps it).
+     expires_at above still ends the session after SESSION_TTL_DAYS even if the browser stays open. */
+  res.cookie(cookieName, token, cookieOptions());
   return expiresAt;
 }
 
