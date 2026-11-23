@@ -69,6 +69,15 @@ interface Page {
   body?: string;
 }
 
+/* the full description as HTML paragraphs (a blank line separates them) */
+const paragraphs = (text: string) =>
+  text
+    .split(/\n\s*\n/)
+    .map(s => s.trim())
+    .filter(Boolean)
+    .map(s => `<p>${esc(s)}</p>`)
+    .join('');
+
 function listingJsonLd(l: ListingRow) {
   const url = abs(listingPath(l));
   return {
@@ -76,7 +85,7 @@ function listingJsonLd(l: ListingRow) {
     '@type': 'RealEstateListing',
     name: l.name,
     url,
-    description: l.line,
+    description: l.description || l.line,
     image: l.photos.length ? l.photos.map(photoUrl) : abs('/og/elevare-og.jpg'),
     datePosted: l.createdAt.toISOString(),
     offers: {
@@ -138,7 +147,7 @@ async function pageFor(path: string): Promise<Page | null> {
         [l.name, listingPath(l)]
       ])
     ],
-    body: `<h1>${esc(l.name)}</h1><p>${esc(what)}${area(l, ' · ')} · ${esc(priceText(l))}</p><p>${esc(l.line)}</p><ul>${l.ex.map(x => `<li>${esc(x)}</li>`).join('')}</ul>`
+    body: `<h1>${esc(l.name)}</h1><p>${esc(what)}${area(l, ' · ')} · ${esc(priceText(l))}</p><p>${esc(l.line)}</p>${paragraphs(l.description)}<ul>${l.ex.map(x => `<li>${esc(x)}</li>`).join('')}</ul>`
   };
 }
 

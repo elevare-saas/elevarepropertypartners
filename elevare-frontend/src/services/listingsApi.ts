@@ -1,5 +1,5 @@
 import {request} from '@/lib/http';
-import type {AdminListing, ListingInput} from '@/types/admin';
+import type {AdminListing, AiDraftInput, ListingInput} from '@/types/admin';
 
 const base = '/admin/listings';
 const one = (r: {listing: AdminListing}) => r.listing;
@@ -21,6 +21,27 @@ export const listingsApi = {
     const form = new FormData();
     form.append('photo', await shrink(file));
     return request<{url: string}>(`${base}/photo`, {form}).then(r => r.url);
+  }
+};
+
+/* Properties → Add with AI (backend/src/routes/aiDrafts.ts) */
+export const aiDraftsApi = {
+  status: (signal?: AbortSignal) =>
+    request<{enabled: boolean; maxImages: number; maxPhotos: number}>('/admin/ai-drafts/status', {signal}),
+  /* one property → a draft listing written by the AI */
+  create: (input: AiDraftInput) => request<{listing: AdminListing}>('/admin/ai-drafts', {body: input}).then(one),
+  /* a small JPEG copy for the AI to look at (about 1024 px, ~150 KB) */
+  preview: async (file: File) => {
+    const img = await createImageBitmap(file);
+    const scale = Math.min(1, 1024 / Math.max(img.width, img.height));
+    const canvas = Object.assign(document.createElement('canvas'), {
+      width: Math.round(img.width * scale),
+      height: Math.round(img.height * scale)
+    });
+    canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height);
+    img.close();
+    const data = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+    return {mediaType: 'image/jpeg' as const, data};
   }
 };
 

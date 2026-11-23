@@ -5,6 +5,7 @@ import {env} from './config/env.js';
 import {loadUser} from './middleware/auth.js';
 import {errorHandler, notFound, requestLog} from './middleware/errors.js';
 import {corsPolicy, sameOriginWrites, securityHeaders} from './middleware/security.js';
+import {aiDrafts} from './routes/aiDrafts.js';
 import {authRouter} from './routes/auth.js';
 import {healthRouter} from './routes/health.js';
 import {adminLeads, publicLeads} from './routes/leads.js';
@@ -23,6 +24,8 @@ export function createApp() {
   app.use(requestLog);
   app.use(securityHeaders);
   app.use(['/api', '/uploads'], corsPolicy);
+  /* AI drafts carry small copies of the photos for the AI (under Vercel's 4.5 MB request limit) */
+  app.use('/api/admin/ai-drafts', express.json({limit: '4mb'}));
   app.use(express.json({limit: env.limits.jsonBody}));
   app.use(cookieParser(env.session.secret));
   app.use('/api', sameOriginWrites);
@@ -33,6 +36,7 @@ export function createApp() {
   app.use('/api/listings', publicListings);
   app.use('/api/leads', publicLeads);
   app.use('/api/admin/listings', adminListings);
+  app.use('/api/admin/ai-drafts', aiDrafts);
   app.use('/api/admin/leads', adminLeads);
   app.use('/api/admin/users', usersRouter);
   app.use('/api/admin/roles', rolesRouter);

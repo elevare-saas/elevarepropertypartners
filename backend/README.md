@@ -7,6 +7,7 @@ sign-in and roles for the admin dashboard (`/admin-login`, `/admin-dashboard` in
 |---|---|---|
 | **Postgres** (Supabase) | everything: see tables below | required |
 | **SMTP** | email to the team for each new lead | optional |
+| **Claude API** (`ANTHROPIC_API_KEY`) | writes property drafts from photos + notes (Properties → Add with AI) | optional |
 
 | Table | Rows |
 |---|---|
@@ -14,7 +15,7 @@ sign-in and roles for the admin dashboard (`/admin-login`, `/admin-dashboard` in
 | `roles` | `name`, `description`, `pages` (page keys), `system` (the one built-in Super Admin role) |
 | `admin_roles` | which employee has which roles (several allowed) |
 | `sessions` | one per sign-in: `token_hash` (SHA-256 of the cookie token), `admin_id`, `expires_at` (expired ones are cleared on sign-in) |
-| `listings` | the properties: `id` (listing id), `seq` (display order), the website's listing fields, `photos` (gallery, cover first; `photo` mirrors the cover), `draft` (waiting for review, never public), `ai` (notes an AI draft was written from + fields to check), `published`, `updated_by`… |
+| `listings` | the properties: `id` (listing id), `seq` (display order), the website's listing fields, `line` (short card text), `description` (full text for the property page), `photos` (gallery, cover first; `photo` mirrors the cover), `draft` (waiting for review, never public), `ai` (notes an AI draft was written from + fields to check), `published`, `updated_by`… |
 | `leads` | website enquiries and viewing requests: `status` new / contacted / closed, the form fields in `data` (jsonb) |
 | `app_meta` | small flags, e.g. that the sample listings were loaded once |
 
@@ -45,10 +46,12 @@ src/
     rateLimit.ts       login and lead-submission limits
     logger.ts          levelled logger (LOG_LEVEL)
     mailer.ts          SMTP email (nodemailer)
+    aiWriter.ts        asks Claude for a listing (title, texts, rooms, features) from photos + notes
   routes/
     health.ts          GET  /api/health
     auth.ts            /api/auth/login, logout, me, password
     listings.ts        /api/listings (public), /api/admin/listings (+ photo upload)
+    aiDrafts.ts        /api/admin/ai-drafts: one property's photos + notes → an AI-written draft
     leads.ts           /api/leads (public), /api/admin/leads
     users.ts           /api/admin/users (Employees management page)
     roles.ts           /api/admin/roles (read: Employees page; change: Super Admin)
@@ -120,6 +123,7 @@ the dashboard sidebar. It then appears in Roles & access, granted to no role unt
 | `GET /api/listings` · `GET /api/listings/:id` | public | published listings, in the shape the website uses |
 | `GET /api/admin/listings` | all roles | every listing, including hidden ones |
 | `POST /api/admin/listings` · `PUT/DELETE /api/admin/listings/:id` · `PATCH …/:id/published` | Properties page | up to 20 `photos`; a `draft` is always hidden, and publishing it approves it |
+| `GET /api/admin/ai-drafts/status` · `POST /api/admin/ai-drafts` | Properties page | `{mode, type, area, price, notes, photos, images}` → a draft listing with the next ELV code; 503 without `ANTHROPIC_API_KEY` |
 | `POST /api/admin/listings/delete` `{ids}` or `{all: true}` | Properties page | bulk delete → `{deleted}` |
 | `POST /api/admin/listings/photo` (multipart `photo`) | Properties page | one JPG/PNG/WebP ≤ 8 MB per request (the dashboard sends several one by one) → its URL |
 | `POST /api/leads` | public (rate-limited) | each lead → `leads`, an email to `LEADS_NOTIFY_EMAIL`, and `LEAD_WEBHOOK_URL` |
@@ -129,6 +133,21 @@ the dashboard sidebar. It then appears in Roles & access, granted to no role unt
 | `GET /api/admin/roles` · `POST` · `PATCH/DELETE /api/admin/roles/:id` | read: Employees page; change: Super Admin | `{name, description, pages}` |
 
 The website shows only published listings from the database; with none in a category it says so instead of showing samples.
+
+## AI listing drafts
+
+**Properties management → ✦ Add with AI** takes several properties at once. For each one, staff add photos, short notes
+and the four facts the AI must not guess (rent/sale, type, area, price). The dashboard uploads the photos, then sends
+small copies of the first 8 with the notes to `POST /api/admin/ai-drafts`, one property at a time. Claude
+(`AI_MODEL`, default `claude-opus-5-5`, with server-side refusal fallback) writes the title, the short and full
+descriptions, bedrooms, bathrooms, amenities and features.
+
+- Every result is a **draft**: hidden until someone opens it (Review), checks it and ticks "Approve and show on the website".
+- Fields the AI estimated from the photos are listed in `ai.check` and marked "please check" in the editor; the notes it
+  started from are kept in `ai.notes`.
+- Sizes and ownership are kept only when the notes state them; the price, area, rent/sale and type are always the staff's.
+- Set `ANTHROPIC_API_KEY` (backend `.env` and Vercel); without it the button explains that the AI isn't set up.
+  Each property costs a few cents of Claude API usage.
 
 ## Search engines, analytics and lead delivery
 

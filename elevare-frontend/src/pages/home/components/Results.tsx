@@ -293,6 +293,19 @@ export function Match() {
             </div>
           </div>
           <p className="m-0 text-muted">{p.line}</p>
+          {p.description && (
+            <div className="grid gap-[10px] text-[14px] leading-[1.6]">
+              {p.description
+                .split(/\n\s*\n/)
+                .map(s => s.trim())
+                .filter(Boolean)
+                .map((para, i) => (
+                  <p key={i} className="m-0 whitespace-pre-line">
+                    {para}
+                  </p>
+                ))}
+            </div>
+          )}
           <div>
             <b className="block text-[14px] mb-[6px]">Why it suits you</b>
             <ul className={fitsList}>

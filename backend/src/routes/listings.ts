@@ -3,12 +3,20 @@ import multer from 'multer';
 import {randomBytes} from 'node:crypto';
 import {extname} from 'node:path';
 import {env} from '../config/env.js';
-import {isUniqueViolation, LISTING_COLS, one, query, REF_CODE_INDEX, type ListingRow} from '../db/pg.js';
+import {
+  isUniqueViolation,
+  LISTING_COLS,
+  one,
+  query,
+  REF_CODE_INDEX,
+  type ListingAi,
+  type ListingRow
+} from '../db/pg.js';
 import {requirePage} from '../middleware/auth.js';
 import {canStorePhotos, deletePhoto, isValidPhoto, savePhoto} from '../lib/photoStore.js';
 
 /* must match the frontend's AREAS and AMEN (src/concierge/data.ts): the matching engine prices by area and scores by amenity */
-const AREAS = [
+export const AREAS = [
   'Kata',
   'Karon',
   'Rawai',
@@ -21,7 +29,7 @@ const AREAS = [
   'Bang Tao',
   'Cape Yamu'
 ];
-const AMENITIES = [
+export const AMENITIES = [
   'pool',
   'fibre',
   'workspace',
@@ -38,7 +46,7 @@ const AMENITIES = [
   'commute',
   'furnished'
 ];
-const TYPES = ['villa', 'condo', 'townhouse'];
+export const TYPES = ['villa', 'condo', 'townhouse'];
 
 type Row = ListingRow;
 
@@ -60,11 +68,13 @@ const toListing = (r: Row) => ({
   ex: r.ex,
   hue: r.hue,
   line: r.line,
+  ...(r.description && {description: r.description}),
   ...(r.photos[0] && {photo: r.photos[0], photos: r.photos})
 });
 /* the reference code and AI notes are internal: admin responses only */
-const toAdmin = (r: Row) => ({
+export const toAdmin = (r: Row) => ({
   ...toListing(r),
+  description: r.description,
   photos: r.photos,
   refCode: r.refCode,
   draft: r.draft,
@@ -79,6 +89,7 @@ const get = (id: string) => one<Row>(`select ${LISTING_COLS} from listings where
 /* uploaded photos are deleted with their listing (or when taken out of its gallery); bundled /photos/ ones stay */
 const removePhotos = (urls: string[]) => Promise.all([...new Set(urls)].map(deletePhoto));
 export const MAX_PHOTOS = 20;
+export const MAX_DESCRIPTION = 5000;
 
 const int = (v: unknown) => (typeof v === 'number' ? v : Number(v));
 /* an optional area in m²: blank → null */
@@ -89,13 +100,17 @@ function optionalArea(v: unknown, label: string, errors: string[]) {
     errors.push(`${label} must be a whole number of m² (10 or more).`);
   return n;
 }
-function validate(b: Record<string, unknown>) {
+export function validate(b: Record<string, unknown>) {
   const e: string[] = [];
   const mode = b.mode,
     type = b.type,
     area = b.area;
   const name = String(b.name ?? '').trim(),
-    line = String(b.line ?? '').trim();
+    line = String(b.line ?? '').trim(),
+    description = String(b.description ?? '')
+      .replace(/\r\n?/g, '\n')
+      .trim();
+  if (description.length > MAX_DESCRIPTION) e.push(`Full description: up to ${MAX_DESCRIPTION} characters.`);
   const beds = int(b.beds),
     price = int(b.price),
     hue = b.hue == null ? 260 : int(b.hue);
@@ -161,6 +176,7 @@ function validate(b: Record<string, unknown>) {
       ex,
       hue: Number.isFinite(hue) ? ((Math.round(hue) % 360) + 360) % 360 : 260,
       line,
+      description,
       photos,
       draft,
       published: !draft && b.published !== false
@@ -189,10 +205,33 @@ const values = (v: ReturnType<typeof validate>['value']) => [
   v.landSqm,
   v.baths,
   v.photos,
-  v.draft
+  v.draft,
+  v.description
 ];
-const refTaken = (e: unknown) => isUniqueViolation(e) && (e as {constraint?: string}).constraint === REF_CODE_INDEX;
+export type Listing = ReturnType<typeof validate>['value'];
+export const refTaken = (e: unknown) =>
+  isUniqueViolation(e) && (e as {constraint?: string}).constraint === REF_CODE_INDEX;
 const REF_TAKEN = 'This reference code is already used by another property.';
+
+/* a new listing (with the AI notes for an AI draft). Random 8-character id, retried on the rare collision;
+   seq (display order) comes from a sequence. A taken reference code is rethrown (see refTaken). */
+export async function insertListing(v: Listing, by: string, ai: ListingAi | null = null): Promise<Row> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const row = await one<Row>(
+        `insert into listings (id, mode, name, area, type, beds, sqm, price, own, rent, am, ex, hue, line, photo,
+                               published, ref_code, land_sqm, baths, photos, draft, description, updated_by, ai)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22,
+                 $23, $24)
+         returning ${LISTING_COLS}`,
+        [randomBytes(4).toString('hex').toUpperCase(), ...values(v), by, ai]
+      );
+      return row!;
+    } catch (e) {
+      if (refTaken(e) || !isUniqueViolation(e) || attempt === 4) throw e;
+    }
+  }
+}
 
 /* ---------- public ---------- */
 export const publicListings = Router();
@@ -220,21 +259,11 @@ adminListings.get('/', requirePage('properties'), async (_req, res) => {
 adminListings.post('/', requirePage('properties'), async (req, res) => {
   const {errors, value: v} = validate(req.body ?? {});
   if (errors.length) return res.status(400).json({error: errors.join(' '), errors});
-  /* random 8-character id; retried on the rare collision. seq (display order) comes from a sequence */
-  for (let attempt = 0; ; attempt++) {
-    try {
-      const row = await one<Row>(
-        `insert into listings (id, mode, name, area, type, beds, sqm, price, own, rent, am, ex, hue, line, photo,
-                               published, ref_code, land_sqm, baths, photos, draft, updated_by)
-         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
-         returning ${LISTING_COLS}`,
-        [randomBytes(4).toString('hex').toUpperCase(), ...values(v), req.user!.email]
-      );
-      return res.status(201).json({listing: toAdmin(row!)});
-    } catch (e) {
-      if (refTaken(e)) return res.status(409).json({error: REF_TAKEN});
-      if (!isUniqueViolation(e) || attempt === 4) throw e;
-    }
+  try {
+    return res.status(201).json({listing: toAdmin(await insertListing(v, req.user!.email))});
+  } catch (e) {
+    if (refTaken(e)) return res.status(409).json({error: REF_TAKEN});
+    throw e;
   }
 });
 
@@ -248,7 +277,7 @@ adminListings.put('/:id', requirePage('properties'), async (req, res) => {
     row = await one<Row>(
       `update listings set mode = $2, name = $3, area = $4, type = $5, beds = $6, sqm = $7, price = $8, own = $9,
               rent = $10, am = $11, ex = $12, hue = $13, line = $14, photo = $15, published = $16,
-              ref_code = $17, land_sqm = $18, baths = $19, photos = $20, draft = $21, updated_by = $22,
+              ref_code = $17, land_sqm = $18, baths = $19, photos = $20, draft = $21, description = $22, updated_by = $23,
               updated_at = now()
         where id = $1
         returning ${LISTING_COLS}`,

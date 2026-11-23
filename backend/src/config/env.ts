@@ -155,6 +155,12 @@ export const env = {
   /* Vercel Blob read-write token: listing photos go there instead of UPLOAD_DIR */
   blobToken: raw('BLOB_READ_WRITE_TOKEN'),
 
+  /* Claude writes property drafts from photos + notes (AI listings page). Empty key: that page says it isn't set up */
+  ai: {
+    apiKey: raw('ANTHROPIC_API_KEY'),
+    model: str('AI_MODEL', 'claude-opus-5-5')
+  },
+
   leadWebhook: {
     url: optionalUrl('LEAD_WEBHOOK_URL'),
     secret: raw('LEAD_WEBHOOK_SECRET')

@@ -31,7 +31,8 @@ export interface ListingRow {
   am: string[];
   ex: string[];
   hue: number;
-  line: string;
+  line: string; // short description for cards (up to 240 characters)
+  description: string; // full description for the property page ('' when none)
   photo: string | null; // the cover: always photos[0] (kept for older readers)
   photos: string[]; // gallery in display order, cover first
   draft: boolean; // waiting for review (e.g. written by AI); never public
@@ -78,7 +79,7 @@ export const isUuid = (id: unknown): id is string => typeof id === 'string' && U
 
 /* column lists with camelCase names, for SELECT … and RETURNING … */
 export const LISTING_COLS = `id, seq, mode, name, area, type, beds, baths, sqm, land_sqm as "landSqm", ref_code as "refCode",
-  price, own, rent, am, ex, hue, line, photo, photos, draft, ai, published, created_at as "createdAt", updated_at as "updatedAt",
+  price, own, rent, am, ex, hue, line, description, photo, photos, draft, ai, published, created_at as "createdAt", updated_at as "updatedAt",
   updated_by as "updatedBy"`;
 /* the unique index on reference codes, to tell "code taken" from an id collision */
 export const REF_CODE_INDEX = 'listings_ref_code';
@@ -233,6 +234,8 @@ alter table listings add column if not exists photos text[] not null default '{}
 update listings set photos = array[photo] where photo is not null and photos = '{}';
 alter table listings add column if not exists draft boolean not null default false;
 alter table listings add column if not exists ai jsonb;
+-- full description for the property page (the short "line" stays for cards)
+alter table listings add column if not exists description text not null default '';
 do $$
 begin
   if not exists (select 1 from pg_constraint where conname = 'listings_draft_hidden') then

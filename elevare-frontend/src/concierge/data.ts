@@ -35,6 +35,8 @@ export interface Listing {
   ex: string[];
   hue: number;
   line: string;
+  /* full description for the property page: paragraphs separated by a blank line */
+  description?: string;
   /* uploaded (/uploads/…) or stock (/photos/…) photo */
   photo?: string;
   /* the whole gallery, cover (= photo) first */

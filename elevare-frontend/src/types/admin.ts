@@ -38,6 +38,8 @@ export interface AdminUser {
 }
 
 export interface AdminListing extends Listing {
+  /* full description ('' when none) */
+  description: string;
   /* private reference code, e.g. ELV-001: dashboard only, never on the website */
   refCode: string | null;
   photos: string[];
@@ -75,6 +77,7 @@ export interface ListingInput {
   am: string[];
   ex: string[];
   line: string;
+  description: string;
   /* cover first, up to 20 */
   photos: string[];
   hue: number;
@@ -97,4 +100,17 @@ export interface RoleInput {
   name: string;
   description: string;
   pages: PageKey[];
+}
+
+/* one property for Properties → Add with AI: the facts staff give; the AI writes the rest */
+export interface AiDraftInput {
+  mode: Mode;
+  type: PropType;
+  area: string;
+  price: number;
+  notes: string;
+  /* uploaded photo URLs, cover first */
+  photos: string[];
+  /* small copies of the first photos, for the AI to look at */
+  images: {mediaType: 'image/jpeg'; data: string}[];
 }

@@ -8,6 +8,7 @@ import {cx, thb, when} from '@/lib/format';
 import type {AdminListing} from '@/types/admin';
 import {useListingFilters, type ListingFilters} from '@/pages/admin-dashboard/hooks/useListingFilters';
 import {useListings} from '@/pages/admin-dashboard/hooks/useListings';
+import AiDraftsSheet from './AiDraftsSheet';
 import ListingEditor, {nextRefCode} from './ListingEditor';
 
 export default function PropertiesPanel() {
@@ -17,6 +18,7 @@ export default function PropertiesPanel() {
   const {listings: rows, error, pendingId, bulkPending, upsert, togglePublished, remove, removeMany} = useListings();
   const {filters, setFilter, shown, stats} = useListingFilters(rows);
   const [editing, setEditing] = useState<AdminListing | 'new' | null>(null);
+  const [withAi, setWithAi] = useState(false);
 
   /* selection only counts what the filters show, so nothing hidden by a filter is deleted by surprise */
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
@@ -73,9 +75,12 @@ Tip: use “Hide” instead if it may come back.`)
           </p>
         </div>
         {editable && (
-          <Btn kind="primary" onClick={() => setEditing('new')}>
-            + Add property
-          </Btn>
+          <div className="flex gap-[8px] flex-wrap">
+            <Btn onClick={() => setEditing('new')}>+ Add property</Btn>
+            <Btn kind="primary" onClick={() => setWithAi(true)}>
+              ✦ Add with AI
+            </Btn>
+          </div>
         )}
       </div>
 
@@ -265,6 +270,17 @@ Tip: use “Hide” instead if it may come back.`)
           );
         })}
       </ul>
+
+      {withAi && (
+        <AiDraftsSheet
+          onClose={() => setWithAi(false)}
+          onCreated={upsert}
+          onReview={l => {
+            setWithAi(false);
+            setEditing(l);
+          }}
+        />
+      )}
 
       {editing && (
         <ListingEditor

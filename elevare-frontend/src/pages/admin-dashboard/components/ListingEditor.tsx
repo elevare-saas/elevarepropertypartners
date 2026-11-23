@@ -25,6 +25,7 @@ interface Draft {
   am: string[];
   ex: string;
   line: string;
+  description: string;
   photos: string[];
   hue: number;
   draft: boolean;
@@ -49,6 +50,7 @@ const fromListing = (l: AdminListing | null, suggestedRef: string): Draft =>
         am: l.am,
         ex: l.ex.join('\n'),
         line: l.line,
+        description: l.description ?? '',
         photos: l.photos?.length ? l.photos : l.photo ? [l.photo] : [],
         hue: l.hue,
         draft: l.draft,
@@ -70,6 +72,7 @@ const fromListing = (l: AdminListing | null, suggestedRef: string): Draft =>
         am: [],
         ex: '',
         line: '',
+        description: '',
         photos: [],
         hue: Math.floor(Math.random() * 360),
         draft: false,
@@ -104,6 +107,7 @@ const toInput = (d: Draft): ListingInput => {
       .map(s => s.trim())
       .filter(Boolean),
     line: d.line.trim(),
+    description: d.description.trim(),
     photos: d.photos,
     hue: d.hue,
     /* ticking "Show on the website" approves a draft */
@@ -371,7 +375,7 @@ export default function ListingEditor({
 
           {buy && (
             <Field
-              label="Ownership (optional)"
+              label={label('own', 'Ownership (optional)')}
               hint="Shown to buyers when filled in; “freehold” also matches buyers who ask for freehold."
             >
               <Input
@@ -395,6 +399,19 @@ export default function ListingEditor({
               maxLength={240}
               rows={3}
               placeholder="Garden pool villa on a quiet lane, ten minutes from Nai Harn."
+            />
+          </Field>
+
+          <Field
+            label={label('description', 'Full description (optional)')}
+            hint="Shown on the property page. Leave a blank line between paragraphs."
+          >
+            <Textarea
+              value={d.description}
+              onChange={e => set('description', e.target.value)}
+              maxLength={5000}
+              rows={8}
+              placeholder="The layout, the views, what's nearby…"
             />
           </Field>
 
