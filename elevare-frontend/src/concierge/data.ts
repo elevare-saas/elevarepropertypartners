@@ -25,6 +25,8 @@ export interface Listing {
   baths?: number;
   /* floor (built-up) area in m²: optional, so check before using */
   sqm?: number;
+  /* indoor living area in m² (part of the floor area): optional */
+  living?: number;
   /* plot size in m²: optional */
   land?: number;
   price: number;

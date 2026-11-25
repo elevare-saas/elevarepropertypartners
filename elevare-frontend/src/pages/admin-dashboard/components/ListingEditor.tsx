@@ -17,6 +17,7 @@ interface Draft {
   beds: string;
   baths: string;
   sqm: string;
+  living: string;
   land: string;
   refCode: string;
   price: string;
@@ -42,6 +43,7 @@ const fromListing = (l: AdminListing | null, suggestedRef: string): Draft =>
         beds: String(l.beds),
         baths: l.baths ? String(l.baths) : '',
         sqm: l.sqm ? String(l.sqm) : '',
+        living: l.living ? String(l.living) : '',
         land: l.land ? String(l.land) : '',
         refCode: l.refCode ?? '',
         price: String(l.price),
@@ -64,6 +66,7 @@ const fromListing = (l: AdminListing | null, suggestedRef: string): Draft =>
         beds: '2',
         baths: '',
         sqm: '',
+        living: '',
         land: '',
         refCode: suggestedRef,
         price: '',
@@ -96,6 +99,7 @@ const toInput = (d: Draft): ListingInput => {
     beds: Number(d.beds),
     baths: d.baths.trim() ? Number(d.baths) : null,
     sqm: d.sqm.trim() ? Number(d.sqm) : null,
+    living: d.living.trim() ? Number(d.living) : null,
     land: d.land.trim() ? Number(d.land) : null,
     refCode: d.refCode.trim().toUpperCase(),
     price: Number(digits(d.price)),
@@ -197,6 +201,8 @@ export default function ListingEditor({
 
   const priceNum = Number(digits(d.price)),
     rentNum = Number(digits(d.rent));
+  /* living area is the indoor part of the floor area (the server checks this too) */
+  const livingTooBig = !!d.sqm.trim() && !!d.living.trim() && Number(d.living) > Number(d.sqm);
 
   return (
     <Sheet
@@ -321,13 +327,35 @@ export default function ListingEditor({
                 placeholder="e.g. 2"
               />
             </Field>
-            <Field label={label('sqm', 'Floor area (m², optional)')} hint="Indoor living / built-up area.">
+            <Field
+              label={label('sqm', 'Floor area (m², optional)')}
+              hint="Total built-up area, including terraces if the developer counts them."
+            >
               <Input
                 type="number"
                 min={10}
                 value={d.sqm}
                 onChange={e => set('sqm', e.target.value)}
+                placeholder="e.g. 280"
+              />
+            </Field>
+            <Field
+              label={label('living', 'Living area (m², optional)')}
+              hint={
+                livingTooBig ? (
+                  <span className="text-[#b4231f]">Can’t be larger than the floor area.</span>
+                ) : (
+                  'Indoor living space only, when the developer states it.'
+                )
+              }
+            >
+              <Input
+                type="number"
+                min={10}
+                value={d.living}
+                onChange={e => set('living', e.target.value)}
                 placeholder="e.g. 220"
+                aria-invalid={livingTooBig || undefined}
               />
             </Field>
             <Field label={label('land', 'Land area (m², optional)')} hint="Plot size, mainly for villas and houses.">

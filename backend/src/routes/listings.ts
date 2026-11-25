@@ -59,6 +59,7 @@ const toListing = (r: Row) => ({
   type: r.type,
   beds: r.beds,
   ...(r.sqm != null && {sqm: r.sqm}),
+  ...(r.livingSqm != null && {living: r.livingSqm}),
   ...(r.landSqm != null && {land: r.landSqm}),
   ...(r.baths != null && {baths: r.baths}),
   price: r.price,
@@ -126,7 +127,10 @@ export function validate(b: Record<string, unknown>) {
     if (!Number.isInteger(baths) || baths < 1 || baths > 20) e.push('Bathrooms must be a whole number from 1 to 20.');
   }
   const sqm = optionalArea(b.sqm, 'Floor area', e),
+    livingSqm = optionalArea(b.living, 'Living area', e),
     landSqm = optionalArea(b.land, 'Land area', e);
+  /* living area is the indoor part of the floor area */
+  if (sqm && livingSqm && livingSqm > sqm) e.push('Living area can’t be larger than the floor area.');
   const refCode = String(b.refCode ?? '')
     .trim()
     .toUpperCase();
@@ -166,6 +170,7 @@ export function validate(b: Record<string, unknown>) {
       type: type as string,
       beds,
       sqm,
+      livingSqm,
       landSqm,
       baths,
       refCode: refCode || null,
@@ -206,7 +211,8 @@ const values = (v: ReturnType<typeof validate>['value']) => [
   v.baths,
   v.photos,
   v.draft,
-  v.description
+  v.description,
+  v.livingSqm
 ];
 export type Listing = ReturnType<typeof validate>['value'];
 export const refTaken = (e: unknown) =>
@@ -220,9 +226,10 @@ export async function insertListing(v: Listing, by: string, ai: ListingAi | null
     try {
       const row = await one<Row>(
         `insert into listings (id, mode, name, area, type, beds, sqm, price, own, rent, am, ex, hue, line, photo,
-                               published, ref_code, land_sqm, baths, photos, draft, description, updated_by, ai)
+                               published, ref_code, land_sqm, baths, photos, draft, description, living_sqm,
+                               updated_by, ai)
          values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22,
-                 $23, $24)
+                 $23, $24, $25)
          returning ${LISTING_COLS}`,
         [randomBytes(4).toString('hex').toUpperCase(), ...values(v), by, ai]
       );
@@ -277,7 +284,8 @@ adminListings.put('/:id', requirePage('properties'), async (req, res) => {
     row = await one<Row>(
       `update listings set mode = $2, name = $3, area = $4, type = $5, beds = $6, sqm = $7, price = $8, own = $9,
               rent = $10, am = $11, ex = $12, hue = $13, line = $14, photo = $15, published = $16,
-              ref_code = $17, land_sqm = $18, baths = $19, photos = $20, draft = $21, description = $22, updated_by = $23,
+              ref_code = $17, land_sqm = $18, baths = $19, photos = $20, draft = $21, description = $22, living_sqm = $23,
+              updated_by = $24,
               updated_at = now()
         where id = $1
         returning ${LISTING_COLS}`,

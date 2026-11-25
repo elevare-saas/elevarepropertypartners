@@ -69,6 +69,7 @@ export interface ListingInput {
   beds: number;
   baths: number | null;
   sqm: number | null;
+  living: number | null;
   land: number | null;
   refCode: string;
   price: number;

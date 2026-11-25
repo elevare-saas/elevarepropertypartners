@@ -21,7 +21,8 @@ export interface ListingRow {
   area: string;
   type: string;
   beds: number;
-  sqm: number | null; // floor (built-up) area; optional
+  sqm: number | null; // floor (total built-up) area; optional
+  livingSqm: number | null; // indoor living area (developers often state it separately); optional
   landSqm: number | null; // plot size; optional
   baths: number | null; // bathrooms; optional
   refCode: string | null; // private reference code, e.g. "ELV-001": admin only, never sent to the website
@@ -78,7 +79,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const isUuid = (id: unknown): id is string => typeof id === 'string' && UUID.test(id);
 
 /* column lists with camelCase names, for SELECT … and RETURNING … */
-export const LISTING_COLS = `id, seq, mode, name, area, type, beds, baths, sqm, land_sqm as "landSqm", ref_code as "refCode",
+export const LISTING_COLS = `id, seq, mode, name, area, type, beds, baths, sqm, living_sqm as "livingSqm", land_sqm as "landSqm", ref_code as "refCode",
   price, own, rent, am, ex, hue, line, description, photo, photos, draft, ai, published, created_at as "createdAt", updated_at as "updatedAt",
   updated_by as "updatedBy"`;
 /* the unique index on reference codes, to tell "code taken" from an id collision */
@@ -236,6 +237,8 @@ alter table listings add column if not exists draft boolean not null default fal
 alter table listings add column if not exists ai jsonb;
 -- full description for the property page (the short "line" stays for cards)
 alter table listings add column if not exists description text not null default '';
+-- optional indoor living area, next to the floor (total built-up) area
+alter table listings add column if not exists living_sqm integer;
 do $$
 begin
   if not exists (select 1 from pg_constraint where conname = 'listings_draft_hidden') then

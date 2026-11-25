@@ -7,7 +7,19 @@ import {env} from '../config/env.js';
 export const aiEnabled = () => !!env.ai.apiKey;
 
 /* fields the reviewer is asked to check (the keys the dashboard's editor marks "please check") */
-export const CHECKABLE = ['name', 'line', 'description', 'beds', 'baths', 'sqm', 'land', 'own', 'am', 'ex'] as const;
+export const CHECKABLE = [
+  'name',
+  'line',
+  'description',
+  'beds',
+  'baths',
+  'sqm',
+  'living',
+  'land',
+  'own',
+  'am',
+  'ex'
+] as const;
 type Checkable = (typeof CHECKABLE)[number];
 
 export interface AiImage {
@@ -28,6 +40,7 @@ export interface AiListing {
   beds: number;
   baths: number | null;
   sqm: number | null;
+  living: number | null;
   land: number | null;
   own: string | null;
   am: string[];
@@ -65,7 +78,7 @@ const nullable = (type: 'integer' | 'string', description: string) => ({
 const SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['name', 'line', 'description', 'beds', 'baths', 'sqm', 'land', 'own', 'am', 'ex', 'check'],
+  required: ['name', 'line', 'description', 'beds', 'baths', 'sqm', 'living', 'land', 'own', 'am', 'ex', 'check'],
   properties: {
     name: {
       type: 'string',
@@ -78,7 +91,14 @@ const SCHEMA = {
     },
     beds: {type: 'integer', description: 'Bedrooms: from the notes, else your best estimate from the photos'},
     baths: nullable('integer', 'Bathrooms if stated or clearly countable, else null'),
-    sqm: nullable('integer', 'Floor area in m², ONLY if the notes state it, else null'),
+    sqm: nullable(
+      'integer',
+      'Floor area in m²: the total built-up / gross area (may include terraces and pool decks), ONLY if the notes state it, else null'
+    ),
+    living: nullable(
+      'integer',
+      'Living area in m²: the indoor living space only, ONLY if the notes state it separately (e.g. "living area", "internal", "indoor"), else null. If the notes give one size without saying which, put it in sqm and leave this null'
+    ),
     land: nullable('integer', 'Land / plot size in m², ONLY if the notes state it, else null'),
     own: nullable('string', 'Ownership for a sale (e.g. "Freehold", "Leasehold 30+30"), ONLY if the notes state it'),
     am: {
@@ -188,6 +208,12 @@ export async function writeListing(facts: AiFacts, images: AiImage[]): Promise<A
   const stated = (n: number | null) =>
     n !== null && facts.notes.replace(/[,.\s]/g, '').includes(String(n)) ? n : null;
   const sqm = stated(whole(out.sqm, 10, 1_000_000));
+  let living = stated(whole(out.living, 10, 1_000_000));
+  /* the indoor part can't be larger than the whole: leave it for the reviewer */
+  if (living !== null && sqm !== null && living > sqm) {
+    living = null;
+    check.add('living');
+  }
   const land = stated(whole(out.land, 10, 1_000_000));
   const own =
     buy && /freehold|leasehold|chanote|company|quota|foreign|lease/i.test(facts.notes) ? clip(out.own, 80) : '';
@@ -198,6 +224,7 @@ export async function writeListing(facts: AiFacts, images: AiImage[]): Promise<A
     beds,
     baths: whole(out.baths, 1, 20),
     sqm,
+    living,
     land,
     own: own || null,
     am: (Array.isArray(out.am) ? out.am : []).filter((a): a is string => a in AMENITY_LABEL),

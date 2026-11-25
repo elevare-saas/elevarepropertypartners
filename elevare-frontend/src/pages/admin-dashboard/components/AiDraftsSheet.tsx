@@ -281,7 +281,7 @@ export default function AiDraftsSheet({
                       maxLength={2000}
                       value={it.notes}
                       onChange={e => patch(it.key, {notes: e.target.value})}
-                      placeholder="3 bed 3 bath, 280 sqm on 600 sqm land, sea view, fully furnished, 5 min to Kata beach, freehold"
+                      placeholder="3 bed 3 bath, 280 sqm built (220 sqm living) on 600 sqm land, sea view, fully furnished, 5 min to Kata beach, freehold"
                     />
                   </Field>
 

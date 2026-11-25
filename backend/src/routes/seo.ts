@@ -103,7 +103,9 @@ function listingJsonLd(l: ListingRow) {
       numberOfRooms: l.beds,
       numberOfBedrooms: l.beds,
       ...(l.baths != null && {numberOfBathroomsTotal: l.baths}),
-      ...(l.sqm != null && {floorSize: {'@type': 'QuantitativeValue', value: l.sqm, unitCode: 'MTK'}}),
+      ...((l.sqm ?? l.livingSqm) != null && {
+        floorSize: {'@type': 'QuantitativeValue', value: l.sqm ?? l.livingSqm, unitCode: 'MTK'}
+      }),
       address: {'@type': 'PostalAddress', addressLocality: l.area, addressRegion: 'Phuket', addressCountry: 'TH'}
     }
   };
@@ -147,7 +149,7 @@ async function pageFor(path: string): Promise<Page | null> {
         [l.name, listingPath(l)]
       ])
     ],
-    body: `<h1>${esc(l.name)}</h1><p>${esc(what)}${area(l, ' · ')} · ${esc(priceText(l))}</p><p>${esc(l.line)}</p>${paragraphs(l.description)}<ul>${l.ex.map(x => `<li>${esc(x)}</li>`).join('')}</ul>`
+    body: `<h1>${esc(l.name)}</h1><p>${esc(what)}${area(l, ' · ')}${l.livingSqm != null ? ` · ${l.livingSqm} m² living` : ''} · ${esc(priceText(l))}</p><p>${esc(l.line)}</p>${paragraphs(l.description)}<ul>${l.ex.map(x => `<li>${esc(x)}</li>`).join('')}</ul>`
   };
 }
 

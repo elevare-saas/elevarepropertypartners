@@ -82,6 +82,7 @@ aiDrafts.post('/', requirePage('properties'), async (req, res) => {
     beds: ai.beds,
     baths: ai.baths,
     sqm: ai.sqm,
+    living: ai.living,
     land: ai.land,
     own: ai.own,
     am: ai.am,
