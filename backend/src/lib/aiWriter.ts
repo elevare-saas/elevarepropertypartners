@@ -1,14 +1,19 @@
-/* AI listing drafts: Claude looks at a property's photos and the team's short notes and writes the listing text and the
-   details it can see. Staff give the facts it must not guess (price, area, rent/sale, type); everything it infers from
-   the photos is returned in `check` so the reviewer looks at it before approving. */
+/* AI listing drafts: Claude looks at a property's photos and the team's notes and writes the listing text and the
+   details it can see. Rent/sale, type, area and price come from the staff when they filled them in; otherwise Claude
+   reads them from the notes (the price only ever from a number written there, checked below). Everything it inferred
+   is returned in `check` so the reviewer looks at it before approving. */
 import Anthropic from '@anthropic-ai/sdk';
 import {env} from '../config/env.js';
-import {placeOf} from '../routes/listings.js';
+import {AREAS, placeOf, TYPES} from '../routes/listings.js';
 
 export const aiEnabled = () => !!env.ai.apiKey;
 
 /* fields the reviewer is asked to check (the keys the dashboard's editor marks "please check") */
 export const CHECKABLE = [
+  'mode',
+  'type',
+  'area',
+  'price',
   'name',
   'line',
   'description',
@@ -27,14 +32,19 @@ export interface AiImage {
   mediaType: 'image/jpeg' | 'image/png' | 'image/webp';
   data: string; // base64
 }
+/* what the staff filled in; a missing one is read from the notes */
 export interface AiFacts {
+  mode?: 'rent' | 'buy';
+  type?: string;
+  area?: string;
+  price?: number;
+  notes: string;
+}
+export interface AiListing {
   mode: 'rent' | 'buy';
   type: string;
   area: string;
   price: number;
-  notes: string;
-}
-export interface AiListing {
   name: string;
   line: string;
   description: string;
@@ -49,8 +59,15 @@ export interface AiListing {
   check: Checkable[];
 }
 
-/* a user-facing problem (bad output, refusal): the route answers 502 with this message */
-export class AiError extends Error {}
+/* a user-facing problem: the route answers with this message (502 bad output or refusal; 422 missing facts) */
+export class AiError extends Error {
+  constructor(
+    message: string,
+    readonly status = 502
+  ) {
+    super(message);
+  }
+}
 
 const TYPE_LABEL: Record<string, string> = {
   villa: 'pool villa',
@@ -81,11 +98,48 @@ const nullable = (type: 'integer' | 'string', description: string) => ({
   anyOf: [{type}, {type: 'null'}],
   description
 });
+const oneOfOrNull = (values: string[], description: string) => ({
+  anyOf: [{type: 'string', enum: values}, {type: 'null'}],
+  description
+});
 const SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['name', 'line', 'description', 'beds', 'baths', 'sqm', 'living', 'land', 'own', 'am', 'ex', 'check'],
+  required: [
+    'mode',
+    'type',
+    'area',
+    'price',
+    'name',
+    'line',
+    'description',
+    'beds',
+    'baths',
+    'sqm',
+    'living',
+    'land',
+    'own',
+    'am',
+    'ex',
+    'check'
+  ],
   properties: {
+    mode: oneOfOrNull(
+      ['rent', 'buy'],
+      'rent or buy (= for sale): as entered by the agent, else from the notes, else null'
+    ),
+    type: oneOfOrNull(
+      TYPES,
+      'Property type: as entered, else from the notes, else from the photos (villa = pool villa, house = house without the villa label, condo = apartment)'
+    ),
+    area: oneOfOrNull(
+      AREAS,
+      'Area: as entered, else where the notes say the property is (Khao Lak / Natai = Phang Nga; Laguna = Bang Tao), else null. A place it is merely near does not count'
+    ),
+    price: nullable(
+      'integer',
+      'Price in THB (monthly rent for a rental): as entered, else the amount written in the notes (e.g. "70k" = 70000, "14.9M" = 14900000), else null. Never estimate'
+    ),
     name: {
       type: 'string',
       description: 'Public listing title, at most 60 characters, e.g. "3-Bed Sea-View Pool Villa in Kata"'
@@ -132,8 +186,9 @@ person reviews before it is published.
 Rules:
 - Use only what the notes say and what the photos clearly show. Never invent sizes, distances, prices, ownership, building
   or project names, views, or facilities you can't see. If unsure, leave it out of the text and add the field to "check".
-- The price, area, rent/sale and property type entered by the agent are correct; don't contradict them. Don't repeat the
-  price in the text (the website shows it).
+- The price, area, rent/sale and property type entered by the agent are correct; don't contradict them. Any of them
+  marked "not entered" must be read from the notes (the type may also come from the photos); return null when the notes
+  don't say, and never estimate a price. Don't repeat the price in the text (the website shows it).
 - Title: "<beds>-Bed <one standout feature> <type> in <area>", plain and factual, no project or building name.
 - Tone: warm, clear and specific, in British English, for international renters and buyers. No exclamation marks, no
   clichés like "nestled", "oasis", "boasts" or "stunning", no emojis.
@@ -153,13 +208,25 @@ const clip = (s: unknown, max: number) =>
 const whole = (v: unknown, min: number, max: number) =>
   typeof v === 'number' && Number.isInteger(v) && v >= min && v <= max ? v : null;
 
+/* every amount written in the notes, in THB: "70,000" · "70k" · "14.9M" · "14.9 million" · "2.5 mb" */
+export function amountsIn(notes: string) {
+  const found = new Set<number>();
+  for (const m of notes.matchAll(/(\d{1,3}(?:[,\s]\d{3})+|\d+(?:\.\d+)?)\s*(k|m|mb|mil(?:lion)?)?(?![a-z])/gi)) {
+    const v = Number(m[1].replace(/[,\s]/g, ''));
+    const u = (m[2] ?? '').toLowerCase();
+    found.add(Math.round(v * (u === 'k' ? 1e3 : u ? 1e6 : 1)));
+  }
+  return found;
+}
+const NOT_ENTERED = 'not entered: read it from the notes';
+
 export async function writeListing(facts: AiFacts, images: AiImage[]): Promise<AiListing & {model: string}> {
-  const buy = facts.mode === 'buy';
+  const rentGiven = facts.mode === 'rent';
   const brief = [
-    `Listing: ${buy ? 'for sale' : 'for rent (monthly)'}`,
-    `Property type: ${TYPE_LABEL[facts.type] ?? facts.type}`,
-    `Area: ${placeOf(facts.area)}`,
-    `Price: ${facts.price.toLocaleString('en-US')} THB${buy ? '' : ' per month'}`,
+    `Listing: ${facts.mode ? (facts.mode === 'buy' ? 'for sale' : 'for rent (monthly)') : NOT_ENTERED}`,
+    `Property type: ${facts.type ? (TYPE_LABEL[facts.type] ?? facts.type) : NOT_ENTERED}`,
+    `Area: ${facts.area ? placeOf(facts.area) : `${NOT_ENTERED} (Phuket areas, or Phang Nga)`}`,
+    `Price: ${facts.price ? `${facts.price.toLocaleString('en-US')} THB${rentGiven ? ' per month' : ''}` : NOT_ENTERED}`,
     `Amenity keys: ${Object.entries(AMENITY_LABEL)
       .map(([k, v]) => `${k} = ${v}`)
       .join('; ')}`,
@@ -207,6 +274,37 @@ export async function writeListing(facts: AiFacts, images: AiImage[]): Promise<A
   const check = new Set<Checkable>(
     (Array.isArray(out.check) ? out.check : []).filter((c): c is Checkable => CHECKABLE.includes(c))
   );
+  /* the basics: what the staff entered wins; what the AI read from the notes is marked for checking */
+  const fromAi = <T>(given: T | undefined, read: T | null, key: Checkable) => {
+    if (given !== undefined) {
+      check.delete(key);
+      return given;
+    }
+    if (read !== null) check.add(key);
+    return read;
+  };
+  const mode = fromAi(facts.mode, out.mode === 'rent' || out.mode === 'buy' ? out.mode : null, 'mode');
+  const type = fromAi(facts.type, TYPES.includes(out.type as string) ? (out.type as string) : null, 'type');
+  const area = fromAi(facts.area, AREAS.includes(out.area as string) ? (out.area as string) : null, 'area');
+  /* a price must be written in the notes: a number the AI came up with on its own is dropped */
+  const readPrice = whole(out.price, 1, Number.MAX_SAFE_INTEGER);
+  const price = fromAi(
+    facts.price,
+    readPrice !== null && amountsIn(facts.notes).has(readPrice) ? readPrice : null,
+    'price'
+  );
+  const unknown = [
+    !mode && 'whether it is for rent or for sale (e.g. "For rent")',
+    !type && 'the property type (villa, condo, townhouse or house)',
+    !area && 'the area (e.g. "Location: Kata")',
+    !price && 'the price (e.g. "Rent: 70,000 THB/month" or "Price: 14,900,000 THB")'
+  ].filter(Boolean);
+  if (unknown.length)
+    throw new AiError(
+      `Couldn't find ${unknown.join(', ')} in the notes. Add it to the notes or choose it in the boxes, then try again.`,
+      422
+    );
+  const buy = mode === 'buy';
   let beds = whole(out.beds, 1, 20);
   if (beds === null) {
     beds = 1;
@@ -226,6 +324,10 @@ export async function writeListing(facts: AiFacts, images: AiImage[]): Promise<A
   const own =
     buy && /freehold|leasehold|chanote|company|quota|foreign|lease/i.test(facts.notes) ? clip(out.own, 80) : '';
   return {
+    mode: mode!,
+    type: type!,
+    area: area!,
+    price: price!,
     name: clip(out.name, 80) || 'Untitled property',
     line: clip(out.line, 240),
     description: clip(out.description, 5000),

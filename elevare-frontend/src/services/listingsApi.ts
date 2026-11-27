@@ -34,16 +34,6 @@ export const aiDraftsApi = {
   create: (input: AiDraftInput) => request<{listing: AdminListing}>('/admin/ai-drafts', {body: input}).then(one)
 };
 
-/* a reference code written in the notes: "Ref: ELV-084", "code PKT12", or a bare "ELV-084" */
-export function refCodeInNotes(notes: string) {
-  const labelled =
-    /\b(?:ref(?:erence)?\.?(?:\s*(?:code|no\.?|number|#))?|listing\s*(?:code|id)|code)\s*[:#=-]?\s*([A-Za-z0-9][A-Za-z0-9._-]{0,29})/i.exec(
-      notes
-    )?.[1];
-  const code = labelled && /\d/.test(labelled) ? labelled : /\b[A-Z]{2,5}-\d{1,6}\b/.exec(notes)?.[0];
-  return code?.replace(/[._-]+$/, '').toUpperCase() ?? '';
-}
-
 /* at most 2000 px wide, WebP: small uploads (the host caps requests at ~4.5 MB) and fast pages.
    Falls back to the original file if the browser can't decode or encode it. */
 async function shrink(file: File, max = 2000): Promise<File> {

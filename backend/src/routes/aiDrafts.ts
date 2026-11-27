@@ -43,19 +43,22 @@ aiDrafts.post('/', requirePage('properties'), async (req, res) => {
       .json({error: 'AI drafts are not set up yet: the Claude API key (ANTHROPIC_API_KEY) is missing.'});
   const b = req.body ?? {};
   const errors: string[] = [];
-  const mode = b.mode,
-    type = b.type,
-    area = b.area,
-    price = Number(b.price);
+  /* rent/sale, type, area and price are optional: left out, the AI reads them from the notes */
+  const given = (v: unknown) => v !== undefined && v !== null && v !== '';
+  const mode = given(b.mode) ? b.mode : undefined,
+    type = given(b.type) ? b.type : undefined,
+    area = given(b.area) ? b.area : undefined,
+    price = given(b.price) ? Number(b.price) : undefined;
   const notes = String(b.notes ?? '').trim();
   const refCode = String(b.refCode ?? '')
     .trim()
     .toUpperCase();
-  if (mode !== 'rent' && mode !== 'buy') errors.push('Choose rent or sale.');
-  if (!TYPES.includes(type)) errors.push('Choose a property type.');
-  if (!AREAS.includes(area)) errors.push('Choose an area.');
-  if (!Number.isSafeInteger(price) || price <= 0)
-    errors.push(mode === 'buy' ? 'Enter the sale price.' : 'Enter the monthly rent.');
+  if (mode !== undefined && mode !== 'rent' && mode !== 'buy') errors.push('Choose rent or sale.');
+  if (type !== undefined && !TYPES.includes(type)) errors.push('Choose a property type.');
+  if (area !== undefined && !AREAS.includes(area)) errors.push('Choose an area.');
+  if (price !== undefined && (!Number.isSafeInteger(price) || price <= 0)) errors.push('Price: a whole number of THB.');
+  if (!notes && !(mode && type && area && price))
+    errors.push('Write the notes, or fill in rent/sale, type, area and price.');
   if (notes.length > MAX_NOTES) errors.push(`Notes: up to ${MAX_NOTES} characters.`);
   if (refCode && !REF_CODE.test(refCode))
     errors.push('Reference code: letters, numbers, dots or dashes only (up to 30), e.g. ELV-084.');
@@ -80,16 +83,16 @@ aiDrafts.post('/', requirePage('properties'), async (req, res) => {
   try {
     ai = await writeListing({mode, type, area, price, notes}, images);
   } catch (e) {
-    if (e instanceof AiError) return res.status(502).json({error: e.message});
+    if (e instanceof AiError) return res.status(e.status).json({error: e.message});
     log.warn(`AI draft failed: ${(e as Error).message}`);
     return res.status(502).json({error: 'The AI service did not answer. Please try again in a minute.'});
   }
 
   const {errors: invalid, value} = validate({
-    mode,
-    type,
-    area,
-    price,
+    mode: ai.mode,
+    type: ai.type,
+    area: ai.area,
+    price: ai.price,
     name: ai.name,
     line: ai.line,
     description: ai.description,

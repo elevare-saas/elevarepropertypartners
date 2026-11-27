@@ -238,6 +238,9 @@ export default function ListingEditor({
           </Alert>
         )}
         <fieldset disabled={readOnly} className="border-0 p-0 m-0 grid gap-[18px] min-w-0">
+          {check.has('mode') && (
+            <span className="text-[12px] text-muted font-semibold -mb-[10px]">{label('mode', 'Rent or sale')}</span>
+          )}
           <div className="grid grid-cols-2 gap-[8px]" role="radiogroup" aria-label="Rent or sale">
             {(['rent', 'buy'] as Mode[]).map(m => (
               <button
@@ -290,7 +293,7 @@ export default function ListingEditor({
           </div>
 
           <div className="grid grid-cols-2 upto480:grid-cols-1 gap-[14px]">
-            <Field label="Area">
+            <Field label={label('area', 'Area')}>
               <Select required value={d.area} onChange={e => set('area', e.target.value)}>
                 <option value="" disabled>
                   Choose an area
@@ -373,7 +376,7 @@ export default function ListingEditor({
 
           <div className="grid grid-cols-2 upto480:grid-cols-1 gap-[14px]">
             <Field
-              label={buy ? 'Sale price (THB)' : 'Monthly rent (THB)'}
+              label={label('price', buy ? 'Sale price (THB)' : 'Monthly rent (THB)')}
               hint={priceNum ? thb(priceNum) + (buy ? '' : ' per month') : undefined}
             >
               <Input

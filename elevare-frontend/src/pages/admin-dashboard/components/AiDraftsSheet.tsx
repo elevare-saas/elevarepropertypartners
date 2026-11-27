@@ -1,7 +1,8 @@
-/* Properties → Add with AI: several properties at once. For each one staff add photos, a few words of notes and the
-   four facts the AI must not guess (rent/sale, type, area, price). "Create drafts" uploads the photos and asks the AI
-   for the title, descriptions, rooms and features, one property after another. Every result is a draft: hidden from
-   the website until someone reviews and approves it. */
+/* Properties → Add with AI: several properties at once. For each one staff add photos and their notes. Rent/sale,
+   type, area, price and the ref code fill in from the notes as they type (lib/notesFacts.ts) and can be changed by
+   hand; any left empty the AI reads from the notes (the price must be written there, it is never guessed).
+   "Create drafts" uploads the photos and asks the AI for the rest, one property after another. Every result is a
+   draft: hidden from the website until someone reviews and approves it. */
 import {useEffect, useRef, useState} from 'react';
 import {Alert, Badge, Btn, Card, Field, Input, Select, Sheet, Textarea} from '@/components/admin/kit';
 import {AREAS, TYPES, type Mode, type PropType} from '@/concierge/data';
@@ -9,7 +10,8 @@ import {useLatest} from '@/hooks/useLatest';
 import {useQuery} from '@/hooks/useQuery';
 import {cx, digits, thb} from '@/lib/format';
 import {errorMessage} from '@/lib/http';
-import {aiDraftsApi, listingsApi, refCodeInNotes} from '@/services/listingsApi';
+import {factsFromNotes, refCodeInNotes} from '@/lib/notesFacts';
+import {aiDraftsApi, listingsApi} from '@/services/listingsApi';
 import type {AdminListing} from '@/types/admin';
 import {MAX_PHOTOS} from './ListingEditor';
 
@@ -22,46 +24,92 @@ interface Item {
   /* files already uploaded (so a retry doesn't upload them again): file → URL */
   uploaded: Map<File, string>;
   notes: string;
-  /* reference code: taken from the notes until someone types in the box */
+  /* the boxes: filled from the notes until someone changes one by hand; '' = the AI reads it from the notes */
   ref: string;
-  refTyped: boolean;
-  mode: Mode;
-  type: PropType;
+  mode: Mode | '';
+  type: PropType | '';
   area: string;
   price: string;
+  /* boxes someone set by hand (the notes no longer change them) */
+  typed: ReadonlySet<Key>;
+  /* boxes currently filled from the notes */
+  fromNotes: ReadonlySet<Key>;
+  /* what a box goes back to when the notes stop saying it: the previous card's choice */
+  base: Pick<Item, 'mode' | 'type' | 'area'>;
   status: Status;
   step?: string;
   error?: string;
   listing?: AdminListing;
 }
 
+type Key = 'ref' | 'mode' | 'type' | 'area' | 'price';
+
 let nextKey = 1;
-const blank = (from?: Item): Item => ({
-  key: nextKey++,
-  files: [],
-  thumbs: [],
-  uploaded: new Map(),
-  notes: '',
-  ref: '',
-  refTyped: false,
-  /* a new card starts like the previous one: a batch is usually the same kind of property */
-  mode: from?.mode ?? 'rent',
-  type: from?.type ?? 'villa',
-  area: from?.area ?? '',
-  price: '',
-  status: 'ready'
+const blank = (from?: Item): Item => {
+  /* a new card starts like the previous one (a batch is often the same kind of property); the notes override it */
+  const base = {mode: from?.mode ?? '', type: from?.type ?? '', area: from?.area ?? ''} as Item['base'];
+  return {
+    key: nextKey++,
+    files: [],
+    thumbs: [],
+    uploaded: new Map(),
+    notes: '',
+    ref: '',
+    ...base,
+    price: '',
+    typed: new Set(),
+    fromNotes: new Set(),
+    base,
+    status: 'ready'
+  };
+};
+
+/* the notes changed: refill every box nobody set by hand */
+function withNotes(it: Item, notes: string): Item {
+  const found = factsFromNotes(notes);
+  const values: Record<Key, string | undefined> = {
+    ref: refCodeInNotes(notes) || undefined,
+    mode: found.mode,
+    type: found.type,
+    area: found.area,
+    price: found.price ? String(found.price) : undefined
+  };
+  const next: Item = {...it, notes};
+  const fromNotes = new Set<Key>();
+  for (const k of Object.keys(values) as Key[]) {
+    if (it.typed.has(k)) continue;
+    const v = values[k];
+    if (v) {
+      (next as unknown as Record<Key, string>)[k] = v;
+      fromNotes.add(k);
+    } else if (it.fromNotes.has(k)) {
+      /* the notes stopped saying it: back to the previous card's choice, or empty */
+      (next as unknown as Record<Key, string>)[k] = k in it.base ? it.base[k as keyof Item['base']] : '';
+    }
+  }
+  return {...next, fromNotes};
+}
+/* a box set by hand */
+const byHand = (it: Item, k: Key, v: string): Partial<Item> => ({
+  [k]: v,
+  typed: new Set([...it.typed, k]),
+  fromNotes: new Set([...it.fromNotes].filter(x => x !== k))
 });
+
+/* the hint under a box: where its value came from */
+const source = (it: Item, k: Key, empty = 'AI reads it from the notes') =>
+  it.fromNotes.has(k) ? 'From your notes' : it[k] ? undefined : empty;
 
 const REF_CODE = /^[A-Z0-9][A-Z0-9._-]{0,29}$/;
 const refOf = (it: Item) => it.ref.trim().toUpperCase();
 
-/* what must be fixed before the AI can start, or '' */
+/* what must be fixed before the AI can start, or '' (rent/sale, type, area and price may be left to the notes) */
 function missing(it: Item, all: Item[], codes: ReadonlySet<string>) {
-  const m = [];
-  if (!it.files.length) m.push('photos');
-  if (!it.area) m.push('area');
-  if (!Number(digits(it.price))) m.push(it.mode === 'buy' ? 'sale price' : 'monthly rent');
-  const problems = m.length ? [`Add ${m.join(', ')}.`] : [];
+  const problems = [];
+  if (!it.files.length) problems.push('Add photos.');
+  if (it.price.trim() && !Number(digits(it.price))) problems.push('Price: numbers only, e.g. 70000.');
+  if (!it.notes.trim() && !(it.mode && it.type && it.area && Number(digits(it.price))))
+    problems.push('Write the notes, or fill in rent/sale, type, area and price.');
   const ref = refOf(it);
   if (ref && !REF_CODE.test(ref)) problems.push('Ref code: letters, numbers, dots or dashes only.');
   else if (ref && codes.has(ref)) problems.push(`Ref code ${ref} is already used by another property.`);
@@ -139,10 +187,10 @@ export default function AiDraftsSheet({
         /* 2. the AI looks at the first photos (the server loads them) and writes the listing */
         patch(it.key, {step: 'AI is writing the listing… (about 30 seconds)'});
         const listing = await aiDraftsApi.create({
-          mode: it.mode,
-          type: it.type,
-          area: it.area,
-          price: Number(digits(it.price)),
+          mode: it.mode || undefined,
+          type: it.type || undefined,
+          area: it.area || undefined,
+          price: Number(digits(it.price)) || undefined,
           notes: it.notes.trim(),
           refCode: refOf(it),
           photos: urls
@@ -193,9 +241,10 @@ export default function AiDraftsSheet({
           </Alert>
         )}
         <p className="m-0 text-[13.5px] text-muted">
-          For each property add photos, a few words about it, and the price, area, rent or sale, and type. The AI writes
-          the title, the descriptions, bedrooms, bathrooms and features. Each one is saved as a{' '}
-          <b className="text-ink">draft</b>: nothing goes on the website until you review and approve it.
+          For each property add photos and paste your notes: rent or sale, price, type, area and anything else you know.
+          The boxes fill in from the notes; the AI writes the title, the descriptions, bedrooms, bathrooms, sizes and
+          features. Each one is saved as a <b className="text-ink">draft</b>: nothing goes on the website until you
+          review and approve it.
         </p>
 
         {items.map((it, n) => {
@@ -290,71 +339,91 @@ export default function AiDraftsSheet({
                   </div>
 
                   <Field
-                    label="Short notes for the AI"
-                    hint="Anything you know: ref code, rooms, sizes, view, furniture, ownership, what's nearby. Note form is fine."
+                    label="Notes for the AI"
+                    hint="Paste or write everything you know: ref code, rent or sale, price, type, area, rooms, sizes, view, furniture, ownership, what's nearby. Note form or Thai is fine."
                   >
                     <Textarea
-                      rows={4}
+                      rows={6}
                       maxLength={5000}
                       value={it.notes}
-                      onChange={e => {
-                        const notes = e.target.value;
-                        patch(it.key, it.refTyped ? {notes} : {notes, ref: refCodeInNotes(notes)});
-                      }}
-                      placeholder="Ref: ELV-085. 3 bed 3 bath, 280 sqm built (220 sqm living) on 600 sqm land, sea view, fully furnished, 5 min to Kata beach, freehold"
+                      onChange={e => setItems(xs => xs.map(x => (x.key === it.key ? withNotes(x, e.target.value) : x)))}
+                      placeholder={
+                        'Ref: ELV-085\nFor rent: 70,000 THB/month\n3-bed pool villa in Kata, 3 bath, 280 sqm built (220 sqm living) on 600 sqm land\nSea view, fully furnished, 5 min to Kata beach'
+                      }
                     />
                   </Field>
 
-                  <div className="grid grid-cols-5 upto760:grid-cols-3 upto600:grid-cols-2 gap-[10px]">
-                    <Field
-                      label="Ref code"
-                      hint={it.ref && !it.refTyped ? 'From your notes' : it.ref ? undefined : 'Empty = next ELV code'}
-                    >
-                      <Input
-                        value={it.ref}
-                        onChange={e => patch(it.key, {ref: e.target.value.toUpperCase(), refTyped: true})}
-                        placeholder="Auto"
-                        maxLength={30}
-                        className="font-mono"
-                        aria-label="Reference code"
-                      />
-                    </Field>
-                    <Field label="Rent or sale">
-                      <Select value={it.mode} onChange={e => patch(it.key, {mode: e.target.value as Mode})}>
-                        <option value="rent">For rent</option>
-                        <option value="buy">For sale</option>
-                      </Select>
-                    </Field>
-                    <Field label="Type">
-                      <Select value={it.type} onChange={e => patch(it.key, {type: e.target.value as PropType})}>
-                        {Object.entries(TYPES).map(([k, l]) => (
-                          <option key={k} value={k}>
-                            {l}
-                          </option>
-                        ))}
-                      </Select>
-                    </Field>
-                    <Field label="Area">
-                      <Select value={it.area} onChange={e => patch(it.key, {area: e.target.value})}>
-                        <option value="" disabled>
-                          Choose
-                        </option>
-                        {AREAS.map(a => (
-                          <option key={a.k}>{a.k}</option>
-                        ))}
-                      </Select>
-                    </Field>
-                    <Field
-                      label={it.mode === 'buy' ? 'Price (THB)' : 'Rent / month (THB)'}
-                      hint={Number(digits(it.price)) ? thb(Number(digits(it.price))) : undefined}
-                    >
-                      <Input
-                        inputMode="numeric"
-                        value={it.price}
-                        onChange={e => patch(it.key, {price: e.target.value})}
-                        placeholder={it.mode === 'buy' ? '14900000' : '60000'}
-                      />
-                    </Field>
+                  <div className="grid gap-[6px]">
+                    <span className="text-[12px] text-muted">
+                      These fill in from your notes. Check them, or leave one empty and the AI reads it from the notes.
+                    </span>
+                    <div className="grid grid-cols-5 upto760:grid-cols-3 upto600:grid-cols-2 gap-[10px]">
+                      <Field label="Ref code" hint={source(it, 'ref', 'Empty = next ELV code')}>
+                        <Input
+                          value={it.ref}
+                          onChange={e => patch(it.key, byHand(it, 'ref', e.target.value.toUpperCase()))}
+                          placeholder="Auto"
+                          maxLength={30}
+                          className="font-mono"
+                          aria-label="Reference code"
+                        />
+                      </Field>
+                      <Field label="Rent or sale" hint={source(it, 'mode')}>
+                        <Select
+                          value={it.mode}
+                          onChange={e => patch(it.key, byHand(it, 'mode', e.target.value))}
+                          aria-label="Rent or sale"
+                        >
+                          <option value="">From notes</option>
+                          <option value="rent">For rent</option>
+                          <option value="buy">For sale</option>
+                        </Select>
+                      </Field>
+                      <Field label="Type" hint={source(it, 'type')}>
+                        <Select
+                          value={it.type}
+                          onChange={e => patch(it.key, byHand(it, 'type', e.target.value))}
+                          aria-label="Type"
+                        >
+                          <option value="">From notes</option>
+                          {Object.entries(TYPES).map(([k, l]) => (
+                            <option key={k} value={k}>
+                              {l}
+                            </option>
+                          ))}
+                        </Select>
+                      </Field>
+                      <Field label="Area" hint={source(it, 'area')}>
+                        <Select
+                          value={it.area}
+                          onChange={e => patch(it.key, byHand(it, 'area', e.target.value))}
+                          aria-label="Area"
+                        >
+                          <option value="">From notes</option>
+                          {AREAS.map(a => (
+                            <option key={a.k}>{a.k}</option>
+                          ))}
+                        </Select>
+                      </Field>
+                      <Field
+                        label={
+                          it.mode === 'buy' ? 'Price (THB)' : it.mode === 'rent' ? 'Rent / month (THB)' : 'Price (THB)'
+                        }
+                        hint={
+                          Number(digits(it.price))
+                            ? `${thb(Number(digits(it.price)))}${it.fromNotes.has('price') ? ' · from your notes' : ''}`
+                            : 'AI reads it from the notes'
+                        }
+                      >
+                        <Input
+                          inputMode="numeric"
+                          value={it.price}
+                          onChange={e => patch(it.key, byHand(it, 'price', e.target.value))}
+                          placeholder="From notes"
+                          aria-label="Price"
+                        />
+                      </Field>
+                    </div>
                   </div>
                 </fieldset>
               )}

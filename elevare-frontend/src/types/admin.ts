@@ -109,10 +109,11 @@ export interface RoleInput {
 
 /* one property for Properties → Add with AI: the facts staff give; the AI writes the rest */
 export interface AiDraftInput {
-  mode: Mode;
-  type: PropType;
-  area: string;
-  price: number;
+  /* left out → the AI reads it from the notes (the price must be written there) */
+  mode?: Mode;
+  type?: PropType;
+  area?: string;
+  price?: number;
   notes: string;
   /* '' → the next ELV-### code */
   refCode: string;

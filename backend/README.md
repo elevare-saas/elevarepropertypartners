@@ -124,7 +124,7 @@ the dashboard sidebar. It then appears in Roles & access, granted to no role unt
 | `GET /api/admin/listings` | all roles | every listing, including hidden ones |
 | `POST /api/admin/listings` · `PUT/DELETE /api/admin/listings/:id` | Properties page | up to 20 `photos`; `status`: `live` \| `draft` \| `hidden` |
 | `PATCH /api/admin/listings/:id/status` · `POST /api/admin/listings/status` | Properties page | `{status}` for one, `{ids, status}` for several; going live clears the AI's "please check" list |
-| `GET /api/admin/ai-drafts/status` · `POST /api/admin/ai-drafts` | Properties page | `{mode, type, area, price, notes, refCode, photos}` → a draft listing (given code, or the next ELV code; 409 if taken); 503 without `ANTHROPIC_API_KEY` |
+| `GET /api/admin/ai-drafts/status` · `POST /api/admin/ai-drafts` | Properties page | `{notes, photos, refCode?, mode?, type?, area?, price?}` (left out = read from the notes) → a draft listing (given code, or the next ELV code; 409 if taken); 503 without `ANTHROPIC_API_KEY` |
 | `POST /api/admin/listings/delete` `{ids}` or `{all: true}` | Properties page | bulk delete → `{deleted}` |
 | `POST /api/admin/listings/photo` (multipart `photo`) | Properties page | one JPG/PNG/WebP ≤ 8 MB per request (the dashboard sends several one by one) → its URL |
 | `POST /api/leads` | public (rate-limited) | each lead → `leads`, an email to `LEADS_NOTIFY_EMAIL`, and `LEAD_WEBHOOK_URL` |
@@ -137,10 +137,13 @@ The website shows only published listings from the database; with none in a cate
 
 ## AI listing drafts
 
-**Properties management → ✦ Add with AI** takes several properties at once. For each one, staff add photos, short notes
-and the four facts the AI must not guess (rent/sale, type, area, price), plus an optional reference code (typed, or
-picked up from the notes, e.g. "Ref: ELV-084"; empty = the next ELV code; a code already in use is refused before the AI
-runs). The dashboard uploads the photos, then sends their addresses with the notes to `POST /api/admin/ai-drafts`, one
+**Properties management → ✦ Add with AI** takes several properties at once. For each one, staff add photos and paste
+their notes. The boxes for the ref code, rent/sale, type, area and price fill in from the notes as they type
+(`elevare-frontend/src/lib/notesFacts.ts`) and can be changed by hand; any left empty, Claude reads from the notes
+(type also from the photos). A price is only ever taken from an amount written in the notes ("70,000", "70k", "14.9M");
+if the notes don't give one of the basics, no draft is created and the card says what's missing (422). Values Claude
+read are marked "please check". Ref code: empty = the next ELV code; a code already in use is refused before the AI
+runs. The dashboard uploads the photos, then sends their addresses with the notes to `POST /api/admin/ai-drafts`, one
 property at a time; the server loads the first 8 photos itself (the host caps a request at ~4.4 MB, so photos never
 travel in it). Claude (`AI_MODEL`, default `claude-opus-5-5`, with server-side refusal fallback) writes the title, the
 short and full descriptions, bedrooms, bathrooms, sizes, amenities and features.
