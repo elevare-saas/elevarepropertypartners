@@ -27,6 +27,29 @@ export function applySettings(s: Partial<SiteSettings>) {
     CONFIG.marketNote = s.market.note;
   }
   if (s.contact) Object.assign(CONFIG, s.contact);
+  if (s.areas || s.contact) updateBusinessData();
+}
+
+/* index.html's business JSON-LD (email, phone, areas served) to match the settings. The server does this too for
+   pages it renders; a page served straight from the CDN (the home page) gets it here, and search engines run it. */
+function updateBusinessData() {
+  const el = document.querySelector('script[type="application/ld+json"][data-site]');
+  if (!el?.textContent) return;
+  try {
+    const data = JSON.parse(el.textContent) as {'@graph'?: Record<string, unknown>[]};
+    const org = data['@graph']?.find(n => n['@type'] === 'RealEstateAgent');
+    if (!org) return;
+    if (CONFIG.email) org.email = CONFIG.email;
+    if (CONFIG.whatsapp) org.telephone = '+' + CONFIG.whatsapp;
+    if (AREAS.length)
+      org.areaServed = [
+        ...[...new Set(AREAS.map(a => a.province))].map(p => ({'@type': 'AdministrativeArea', name: `${p}, Thailand`})),
+        ...AREAS.filter(a => a.k !== a.province).map(a => ({'@type': 'Place', name: a.k}))
+      ];
+    el.textContent = JSON.stringify(data);
+  } catch {
+    /* leave the built-in data */
+  }
 }
 
 let loading: Promise<boolean> | null = null;
