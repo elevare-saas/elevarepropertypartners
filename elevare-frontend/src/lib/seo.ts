@@ -1,7 +1,7 @@
 /* Per-page head tags: title, description, robots, canonical, hreflang, Open Graph and JSON-LD.
    The backend writes the same tags into the HTML when it serves the site (backend/src/routes/seo.ts), so crawlers
    see them without JavaScript; this keeps them right in the browser and in development. */
-import {TYPES, type Listing} from '@/concierge/data';
+import {placeOf, provinceOf, TYPES, type Listing} from '@/concierge/data';
 import {thb} from '@/lib/format';
 import {assetUrl} from '@/services/apiBase';
 
@@ -97,7 +97,7 @@ const homeSeo: Seo = {
 export const applyHomeSeo = () => applySeo(homeSeo);
 
 const describe = (l: Listing) =>
-  `${l.beds}-bed ${TYPES[l.type].toLowerCase()} ${l.mode === 'rent' ? 'for rent' : 'for sale'} in ${l.area}, Phuket`;
+  `${l.beds}-bed ${TYPES[l.type].toLowerCase()} ${l.mode === 'rent' ? 'for rent' : 'for sale'} in ${placeOf(l.area)}`;
 
 /* one property's tags (the backend writes the same ones for crawlers) */
 export function listingSeo(l: Listing): Seo {
@@ -131,7 +131,12 @@ export function listingSeo(l: Listing): Seo {
           ...((l.sqm || l.living) && {
             floorSize: {'@type': 'QuantitativeValue', value: l.sqm || l.living, unitCode: 'MTK'}
           }),
-          address: {'@type': 'PostalAddress', addressLocality: l.area, addressRegion: 'Phuket', addressCountry: 'TH'}
+          address: {
+            '@type': 'PostalAddress',
+            addressLocality: l.area,
+            addressRegion: provinceOf(l.area),
+            addressCountry: 'TH'
+          }
         }
       },
       breadcrumbs([

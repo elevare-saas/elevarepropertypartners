@@ -1,5 +1,5 @@
 import PropertyImage from '@/components/site/PropertyImage';
-import {TYPES, type Listing} from '@/concierge/data';
+import {placeOf, TYPES, type Listing} from '@/concierge/data';
 import {thb} from '@/lib/format';
 import {listingPath} from '@/lib/seo';
 
@@ -47,7 +47,7 @@ export default function ListingCard({
         <PropertyImage
           listing={l}
           eager={eager}
-          alt={`${l.name}, ${TYPES[l.type].toLowerCase()} in ${l.area}, Phuket`}
+          alt={`${l.name}, ${TYPES[l.type].toLowerCase()} in ${placeOf(l.area)}`}
           className="w-full h-full [transition:transform_.6s] group-hover:scale-[1.04]"
         />
         <span className="absolute top-[12px] left-[12px] rounded-full bg-[rgba(5,4,9,.72)] backdrop-blur-[6px] text-white text-[11px] font-semibold tracking-[.08em] uppercase py-[5px] px-[10px]">
@@ -57,7 +57,7 @@ export default function ListingCard({
       <span className="grid gap-[6px] px-[2px]">
         <span className="flex items-center gap-[5px] text-muted text-[12.5px]">
           <Icon d={PIN} />
-          {l.area}, Phuket
+          {placeOf(l.area)}
         </span>
         <b className="text-[17px] leading-snug font-display font-semibold">{l.name}</b>
         <span className="flex items-center gap-[14px] text-muted text-[13px]">

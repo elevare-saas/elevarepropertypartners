@@ -27,8 +27,13 @@ export const AREAS = [
   'Kamala',
   'Surin',
   'Bang Tao',
-  'Cape Yamu'
+  'Cape Yamu',
+  'Phang Nga'
 ];
+/* the province a listing is in: every area is in Phuket except Phang Nga, its own province (Khao Lak, Natai…) */
+export const provinceOf = (area: string) => (area === 'Phang Nga' ? 'Phang Nga' : 'Phuket');
+/* "Kata, Phuket" · "Phang Nga" */
+export const placeOf = (area: string) => (provinceOf(area) === area ? area : `${area}, ${provinceOf(area)}`);
 export const AMENITIES = [
   'pool',
   'fibre',
@@ -46,7 +51,7 @@ export const AMENITIES = [
   'commute',
   'furnished'
 ];
-export const TYPES = ['villa', 'condo', 'townhouse'];
+export const TYPES = ['villa', 'condo', 'townhouse', 'house'];
 
 type Row = ListingRow;
 

@@ -15,7 +15,7 @@ const isListing = (l: unknown): l is Listing => {
     (x.mode === 'rent' || x.mode === 'buy') &&
     typeof x.name === 'string' &&
     typeof x.area === 'string' &&
-    (x.type === 'villa' || x.type === 'condo' || x.type === 'townhouse') &&
+    (x.type === 'villa' || x.type === 'condo' || x.type === 'townhouse' || x.type === 'house') &&
     typeof x.beds === 'number' &&
     pos(x.price) &&
     /* floor area, living area, land area, ownership and estimated rent are optional (the site hides what's missing) */

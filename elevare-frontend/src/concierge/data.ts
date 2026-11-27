@@ -2,7 +2,7 @@
 import {apiUrl} from '@/services/apiBase';
 
 export type Mode = 'rent' | 'buy';
-export type PropType = 'villa' | 'condo' | 'townhouse';
+export type PropType = 'villa' | 'condo' | 'townhouse' | 'house';
 /** [key, label, must-haves it adds, suggested area, people (friends only)] */
 export type Vibe = [string, string, string[], string, number?];
 export interface Persona {
@@ -59,8 +59,8 @@ export const CONFIG = {
 };
 /* Market estimates (THB): rent = monthly, furnished pool villa, by bedrooms; sale = per sqm, by type */
 export const RENT_BASE = {1: 35000, 2: 55000, 3: 80000, 4: 120000, 5: 170000, 6: 230000};
-export const TYPE_RENT = {villa: 1, condo: 0.55, townhouse: 0.7};
-export const SQM_BASE = {villa: 75000, condo: 110000, townhouse: 55000};
+export const TYPE_RENT = {villa: 1, condo: 0.55, townhouse: 0.7, house: 0.8};
+export const SQM_BASE = {villa: 75000, condo: 110000, townhouse: 55000, house: 60000};
 export const AREAS = [
   {k: 'Kata', f: 1.1, d: 'Surf beach, cafés and restaurants on foot'},
   {k: 'Karon', f: 1.0, d: 'Long, easy-going beach'},
@@ -72,9 +72,19 @@ export const AREAS = [
   {k: 'Kamala', f: 1.15, d: 'Relaxed bay, ocean-view homes'},
   {k: 'Surin', f: 1.35, d: 'Prestige beach address'},
   {k: 'Bang Tao', f: 1.25, d: 'Laguna, beach clubs, international schools'},
-  {k: 'Cape Yamu', f: 1.4, d: 'Private headland, bay views'}
+  {k: 'Cape Yamu', f: 1.4, d: 'Private headland, bay views'},
+  {k: 'Phang Nga', f: 0.9, d: 'Khao Lak and Natai beaches, quiet and green'}
 ];
-export const TYPES: Record<string, string> = {villa: 'Pool villa', condo: 'Condo', townhouse: 'Townhouse'};
+/* every area is in Phuket except Phang Nga, its own province next door */
+export const provinceOf = (area: string) => (area === 'Phang Nga' ? 'Phang Nga' : 'Phuket');
+/* "Kata, Phuket" · "Phang Nga" */
+export const placeOf = (area: string) => (provinceOf(area) === area ? area : `${area}, ${provinceOf(area)}`);
+export const TYPES: Record<string, string> = {
+  villa: 'Pool villa',
+  condo: 'Condo',
+  townhouse: 'Townhouse',
+  house: 'House'
+};
 export const AMEN: Record<string, string> = {
   pool: 'Private pool',
   fibre: 'Fast fibre internet',

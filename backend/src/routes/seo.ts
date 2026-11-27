@@ -9,9 +9,10 @@ import {join} from 'node:path';
 import {env} from '../config/env.js';
 import {LISTING_COLS, one, query, type ListingRow} from '../db/pg.js';
 import {log} from '../lib/logger.js';
+import {placeOf, provinceOf} from './listings.js';
 
 const BRAND = 'Elevare Property Partners';
-const TYPE_LABEL: Record<string, string> = {villa: 'Villa', condo: 'Condo', townhouse: 'Townhouse'};
+const TYPE_LABEL: Record<string, string> = {villa: 'Villa', condo: 'Condo', townhouse: 'Townhouse', house: 'House'};
 /* the old property list pages were removed: their addresses redirect to the home page */
 const OLD_LIST_PAGES = new Set(['/properties', '/properties/for-rent', '/properties/for-sale']);
 
@@ -106,7 +107,12 @@ function listingJsonLd(l: ListingRow) {
       ...((l.sqm ?? l.livingSqm) != null && {
         floorSize: {'@type': 'QuantitativeValue', value: l.sqm ?? l.livingSqm, unitCode: 'MTK'}
       }),
-      address: {'@type': 'PostalAddress', addressLocality: l.area, addressRegion: 'Phuket', addressCountry: 'TH'}
+      address: {
+        '@type': 'PostalAddress',
+        addressLocality: l.area,
+        addressRegion: provinceOf(l.area),
+        addressCountry: 'TH'
+      }
     }
   };
 }
@@ -135,7 +141,7 @@ async function pageFor(path: string): Promise<Page | null> {
       path,
       noindex: true
     };
-  const what = `${l.beds}-bed ${(TYPE_LABEL[l.type] ?? l.type).toLowerCase()} ${l.mode === 'rent' ? 'for rent' : 'for sale'} in ${l.area}, Phuket`;
+  const what = `${l.beds}-bed ${(TYPE_LABEL[l.type] ?? l.type).toLowerCase()} ${l.mode === 'rent' ? 'for rent' : 'for sale'} in ${placeOf(l.area)}`;
   return {
     status: 200,
     title: `${l.name}: ${what} | ${BRAND}`,

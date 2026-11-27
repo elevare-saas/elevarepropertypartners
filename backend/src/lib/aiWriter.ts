@@ -3,6 +3,7 @@
    the photos is returned in `check` so the reviewer looks at it before approving. */
 import Anthropic from '@anthropic-ai/sdk';
 import {env} from '../config/env.js';
+import {placeOf} from '../routes/listings.js';
 
 export const aiEnabled = () => !!env.ai.apiKey;
 
@@ -51,7 +52,12 @@ export interface AiListing {
 /* a user-facing problem (bad output, refusal): the route answers 502 with this message */
 export class AiError extends Error {}
 
-const TYPE_LABEL: Record<string, string> = {villa: 'pool villa', condo: 'condo', townhouse: 'townhouse'};
+const TYPE_LABEL: Record<string, string> = {
+  villa: 'pool villa',
+  condo: 'condo',
+  townhouse: 'townhouse',
+  house: 'house'
+};
 /* must match the website's amenity labels (frontend src/concierge/data.ts → AMEN) */
 const AMENITY_LABEL: Record<string, string> = {
   pool: 'Private pool',
@@ -152,7 +158,7 @@ export async function writeListing(facts: AiFacts, images: AiImage[]): Promise<A
   const brief = [
     `Listing: ${buy ? 'for sale' : 'for rent (monthly)'}`,
     `Property type: ${TYPE_LABEL[facts.type] ?? facts.type}`,
-    `Area: ${facts.area}, Phuket`,
+    `Area: ${placeOf(facts.area)}`,
     `Price: ${facts.price.toLocaleString('en-US')} THB${buy ? '' : ' per month'}`,
     `Amenity keys: ${Object.entries(AMENITY_LABEL)
       .map(([k, v]) => `${k} = ${v}`)

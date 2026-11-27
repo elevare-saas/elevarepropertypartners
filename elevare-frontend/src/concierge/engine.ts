@@ -509,7 +509,8 @@ export function parseAsk(txt: string) {
     if (
       t.includes(a.k.toLowerCase()) ||
       (a.k === 'Bang Tao' && /bangtao|laguna/.test(t)) ||
-      (a.k === 'Phuket Town' && /old town|town centre|city/.test(t))
+      (a.k === 'Phuket Town' && /old town|town centre|city/.test(t)) ||
+      (a.k === 'Phang Nga' && /phangnga|khao lak|khaolak|natai/.test(t))
     ) {
       S.area = a.k;
       S.done.add('area');
@@ -522,9 +523,12 @@ export function parseAsk(txt: string) {
   } else if (/townhouse|town house/.test(t)) {
     S.type = 'townhouse';
     got.push('Townhouse');
-  } else if (/villa|house/.test(t)) {
+  } else if (/villa/.test(t)) {
     S.type = 'villa';
     got.push('Villa');
+  } else if (/\bhouse\b/.test(t)) {
+    S.type = 'house';
+    got.push('House');
   }
   if (/studio/.test(t)) S.beds = 1;
   if ((m = t.match(/(\d+|one|two|three|four|five|six)\s*-?\s*(bed|bedroom|br|bdr)/))) {
@@ -622,7 +626,7 @@ export const VOCAB = [
     'friends sharing'
   ].map(w => ({w, h: 'about you'})),
   ...AREAS.map(a => ({w: a.k, h: 'area'})),
-  ...['pool villa', 'condo', 'studio', 'townhouse'].map(w => ({w, h: 'type'})),
+  ...['pool villa', 'condo', 'studio', 'townhouse', 'house'].map(w => ({w, h: 'type'})),
   ...['1 bedroom', '2 bedrooms', '3 bedrooms', '4 bedrooms'].map(w => ({w, h: 'size'})),
   ...[
     'fast wifi',

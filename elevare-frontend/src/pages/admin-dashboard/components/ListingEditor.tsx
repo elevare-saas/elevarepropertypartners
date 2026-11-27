@@ -129,7 +129,7 @@ export function nextRefCode(listings: Pick<AdminListing, 'refCode'>[]) {
 
 /* a public title from the facts, never the project or building name: "3-Bed Sea-View Pool Villa in Kata" */
 function suggestTitle(d: Draft) {
-  const kind = {villa: 'Pool Villa', condo: 'Condo', townhouse: 'Townhouse'}[d.type];
+  const kind = {villa: 'Pool Villa', condo: 'Condo', townhouse: 'Townhouse', house: 'House'}[d.type];
   const view = d.am.includes('seaview') ? 'Sea-View ' : '';
   return `${d.beds}-Bed ${view}${kind}${d.area ? ` in ${d.area}` : ''}`;
 }
