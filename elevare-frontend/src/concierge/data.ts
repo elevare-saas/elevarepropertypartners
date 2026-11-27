@@ -73,12 +73,15 @@ export const AREAS = [
   {k: 'Surin', f: 1.35, d: 'Prestige beach address'},
   {k: 'Bang Tao', f: 1.25, d: 'Laguna, beach clubs, international schools'},
   {k: 'Cape Yamu', f: 1.4, d: 'Private headland, bay views'},
+  {k: 'Thalang', f: 0.85, d: 'North Phuket: near the airport, quiet and green'},
+  {k: 'Kathu', f: 0.85, d: 'Between Patong and town: golf, schools, central'},
+  {k: 'Mueang Phuket', f: 0.75, d: 'Phuket City district: town life, hospitals, schools'},
   {k: 'Phang Nga', f: 0.9, d: 'Khao Lak and Natai beaches, quiet and green'}
 ];
 /* every area is in Phuket except Phang Nga, its own province next door */
 export const provinceOf = (area: string) => (area === 'Phang Nga' ? 'Phang Nga' : 'Phuket');
-/* "Kata, Phuket" · "Phang Nga" */
-export const placeOf = (area: string) => (provinceOf(area) === area ? area : `${area}, ${provinceOf(area)}`);
+/* "Kata, Phuket" · "Phang Nga" · "Mueang Phuket" (a name that already says the province doesn't repeat it) */
+export const placeOf = (area: string) => (area.endsWith(provinceOf(area)) ? area : `${area}, ${provinceOf(area)}`);
 export const TYPES: Record<string, string> = {
   villa: 'Pool villa',
   condo: 'Condo',

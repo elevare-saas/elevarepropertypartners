@@ -134,7 +134,7 @@ const SCHEMA = {
     ),
     area: oneOfOrNull(
       AREAS,
-      'Area: as entered, else where the notes say the property is (Khao Lak / Natai = Phang Nga; Laguna = Bang Tao), else null. A place it is merely near does not count'
+      'Area: as entered, else where the notes say the property is (Khao Lak / Natai = Phang Nga; Laguna = Bang Tao; Muang = Mueang Phuket; prefer the most specific area named, e.g. Kata rather than Mueang Phuket), else null. A place it is merely near does not count'
     ),
     price: nullable(
       'integer',

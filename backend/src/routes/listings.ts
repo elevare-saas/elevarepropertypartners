@@ -28,12 +28,15 @@ export const AREAS = [
   'Surin',
   'Bang Tao',
   'Cape Yamu',
+  'Thalang',
+  'Kathu',
+  'Mueang Phuket',
   'Phang Nga'
 ];
 /* the province a listing is in: every area is in Phuket except Phang Nga, its own province (Khao Lak, Natai…) */
 export const provinceOf = (area: string) => (area === 'Phang Nga' ? 'Phang Nga' : 'Phuket');
-/* "Kata, Phuket" · "Phang Nga" */
-export const placeOf = (area: string) => (provinceOf(area) === area ? area : `${area}, ${provinceOf(area)}`);
+/* "Kata, Phuket" · "Phang Nga" · "Mueang Phuket" (a name that already says the province doesn't repeat it) */
+export const placeOf = (area: string) => (area.endsWith(provinceOf(area)) ? area : `${area}, ${provinceOf(area)}`);
 export const AMENITIES = [
   'pool',
   'fibre',

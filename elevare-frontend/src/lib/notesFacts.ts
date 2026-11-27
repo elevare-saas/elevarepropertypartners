@@ -51,6 +51,7 @@ const EXTRA: Record<string, RegExp> = {
   'Bang Tao': /\bbang\s*tao\b|\blaguna\b/i,
   'Phang Nga': /\bphang\s*-?\s*nga\b(?!\s+bay)|\bkhao\s*lak\b|\bnatai\b/i,
   'Phuket Town': /\bphuket\s*town\b|\bold\s*town\b/i,
+  'Mueang Phuket': /\bmu(?:e)?ang\s*(?:district\s*)?(?:phuket)?\b/i,
   'Nai Harn': /\bnai\s*harn\b|\bnaiharn\b/i,
   'Cape Yamu': /\bcape\s*yamu\b/i
 };

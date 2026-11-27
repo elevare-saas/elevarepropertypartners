@@ -510,7 +510,8 @@ export function parseAsk(txt: string) {
       t.includes(a.k.toLowerCase()) ||
       (a.k === 'Bang Tao' && /bangtao|laguna/.test(t)) ||
       (a.k === 'Phuket Town' && /old town|town centre|city/.test(t)) ||
-      (a.k === 'Phang Nga' && /phangnga|khao lak|khaolak|natai/.test(t))
+      (a.k === 'Phang Nga' && /phangnga|khao lak|khaolak|natai/.test(t)) ||
+      (a.k === 'Mueang Phuket' && /muang phuket|mueang/.test(t))
     ) {
       S.area = a.k;
       S.done.add('area');
