@@ -17,17 +17,7 @@ export default defineConfig({
       transformIndexHtml: html =>
         html.replaceAll('%SITE_URL%', (process.env.VITE_SITE_URL || loadSiteUrl()).replace(/\/+$/, ''))
     },
-    {
-      /* WhatsApp is the site's first contact: never ship a build whose WhatsApp buttons go nowhere */
-      name: 'require-whatsapp',
-      configResolved(config) {
-        const n = String(config.env.VITE_WHATSAPP_NUMBER ?? '').replace(/\D/g, '');
-        if (config.command === 'build' && n.length < 8)
-          throw new Error(
-            'VITE_WHATSAPP_NUMBER is missing. Add it to elevare-frontend/.env (digits only, e.g. 66812345678) and build again.'
-          );
-      }
-    },
+    /* the WhatsApp number and other contact details come from the database (dashboard → Website settings) */
     {
       name: 'patch-sec-fetch-dest',
       configureServer(server) {

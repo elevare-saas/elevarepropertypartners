@@ -142,8 +142,9 @@ says so instead of showing old or sample data.
 Marketing Manager, Viewer). They need the API in `../backend` running (`npm run dev` there); the Vite dev server proxies
 `/api`, `/uploads` and `/sitemap.xml` to it.
 
-To go live: set `VITE_WHATSAPP_NUMBER` (required; the build stops without it), `VITE_SITE_URL` and
-`VITE_GA_MEASUREMENT_ID` in `.env`, and manage the real rentals and sales in the dashboard.
+To go live: set `VITE_SITE_URL` and `VITE_GA_MEASUREMENT_ID` in `.env`, and manage the real rentals and sales in the
+dashboard. The WhatsApp number, email, areas and market estimates come from the database (`GET /api/settings`, loaded
+by `src/lib/siteSettings.ts` before any page renders) and are edited in the dashboard under **Website settings**.
 
 Tailwind is loaded **without preflight** on purpose: the original page relies on browser default styles,
 so the React version renders pixel-for-pixel the same. Breakpoints match the original exactly

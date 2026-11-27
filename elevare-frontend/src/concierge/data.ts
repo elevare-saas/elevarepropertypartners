@@ -45,41 +45,38 @@ export interface Listing {
   photos?: string[];
 }
 
+/* The values below marked "from the database" are filled by loadSettings() (src/lib/siteSettings.ts) before any page
+   renders: they're edited in the dashboard (Website settings), not here. */
 export const CONFIG = {
   brand: 'Elevare',
-  /* digits only, international format, e.g. "66812345678": set VITE_WHATSAPP_NUMBER in .env */
-  whatsapp: String(import.meta.env.VITE_WHATSAPP_NUMBER ?? '').replace(/\D/g, ''),
-  sms: '', // e.g. "+66812345678"
-  email: 'hello@elevarepropertypartners.com',
-  location: 'Phuket, Thailand',
   leadEndpoint: apiUrl('/api/leads'), // leads are POSTed here as JSON; "" disables
-  replyWindow: 'between 9:00 and 21:00 Phuket time',
-  avgYield: 0.055,
-  marketNote: 'Indicative Phuket market figures, Oct 2026. Replace with your own comparables.'
+  /* from the database: */
+  whatsapp: '', // digits only, international format, e.g. "66812345678"
+  email: '',
+  location: '',
+  replyWindow: '',
+  avgYield: 0,
+  marketNote: ''
 };
-/* Market estimates (THB): rent = monthly, furnished pool villa, by bedrooms; sale = per sqm, by type */
-export const RENT_BASE = {1: 35000, 2: 55000, 3: 80000, 4: 120000, 5: 170000, 6: 230000};
-export const TYPE_RENT = {villa: 1, condo: 0.55, townhouse: 0.7, house: 0.8};
-export const SQM_BASE = {villa: 75000, condo: 110000, townhouse: 55000, house: 60000};
-export const AREAS = [
-  {k: 'Kata', f: 1.1, d: 'Surf beach, cafés and restaurants on foot'},
-  {k: 'Karon', f: 1.0, d: 'Long, easy-going beach'},
-  {k: 'Rawai', f: 0.85, d: 'Expat village feel, gyms, good value'},
-  {k: 'Nai Harn', f: 1.0, d: 'Calm lagoon beach, green and quiet'},
-  {k: 'Chalong', f: 0.8, d: 'Central, Muay Thai and fitness camps'},
-  {k: 'Phuket Town', f: 0.7, d: 'Business hub, old town, hospitals'},
-  {k: 'Patong', f: 0.95, d: 'Nightlife, shopping, energy'},
-  {k: 'Kamala', f: 1.15, d: 'Relaxed bay, ocean-view homes'},
-  {k: 'Surin', f: 1.35, d: 'Prestige beach address'},
-  {k: 'Bang Tao', f: 1.25, d: 'Laguna, beach clubs, international schools'},
-  {k: 'Cape Yamu', f: 1.4, d: 'Private headland, bay views'},
-  {k: 'Thalang', f: 0.85, d: 'North Phuket: near the airport, quiet and green'},
-  {k: 'Kathu', f: 0.85, d: 'Between Patong and town: golf, schools, central'},
-  {k: 'Mueang Phuket', f: 0.75, d: 'Phuket City district: town life, hospitals, schools'},
-  {k: 'Phang Nga', f: 0.9, d: 'Khao Lak and Natai beaches, quiet and green'}
-];
-/* every area is in Phuket except Phang Nga, its own province next door */
-export const provinceOf = (area: string) => (area === 'Phang Nga' ? 'Phang Nga' : 'Phuket');
+/* Market estimates (THB), from the database: rent = monthly, furnished pool villa, by bedrooms; sale = per m², by type */
+export const RENT_BASE: Record<1 | 2 | 3 | 4 | 5 | 6, number> = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0};
+export const TYPE_RENT: Record<PropType, number> = {villa: 0, condo: 0, townhouse: 0, house: 0};
+export const SQM_BASE: Record<PropType, number> = {villa: 0, condo: 0, townhouse: 0, house: 0};
+
+export interface Area {
+  k: string;
+  /* one line for the area tiles and the search assistant */
+  d: string;
+  /* price level against the island average: 1 = average */
+  f: number;
+  province: string;
+  /* other names people write: "Khao Lak" → Phang Nga */
+  aliases: string[];
+}
+/* from the database, in the order set in the dashboard */
+export const AREAS: Area[] = [];
+/* "Phuket" unless the area says otherwise (e.g. Phang Nga) */
+export const provinceOf = (area: string) => AREAS.find(a => a.k === area)?.province || 'Phuket';
 /* "Kata, Phuket" · "Phang Nga" · "Mueang Phuket" (a name that already says the province doesn't repeat it) */
 export const placeOf = (area: string) => (area.endsWith(provinceOf(area)) ? area : `${area}, ${provinceOf(area)}`);
 export const TYPES: Record<string, string> = {

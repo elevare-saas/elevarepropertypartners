@@ -46,19 +46,23 @@ function typeIn(notes: string): PropType | undefined {
   return undefined;
 }
 
-/* ---- area: a "Location: …" line wins, otherwise the first area named ---- */
-const EXTRA: Record<string, RegExp> = {
-  'Bang Tao': /\bbang\s*tao\b|\blaguna\b/i,
-  'Phang Nga': /\bphang\s*-?\s*nga\b(?!\s+bay)|\bkhao\s*lak\b|\bnatai\b/i,
-  'Phuket Town': /\bphuket\s*town\b|\bold\s*town\b/i,
-  'Mueang Phuket': /\bmu(?:e)?ang\s*(?:district\s*)?(?:phuket)?\b/i,
-  'Nai Harn': /\bnai\s*harn\b|\bnaiharn\b/i,
-  'Cape Yamu': /\bcape\s*yamu\b/i
-};
-const AREA_RE = AREAS.map(a => ({k: a.k, re: EXTRA[a.k] ?? new RegExp(`\\b${a.k.replace(/\s+/g, '\\s*')}\\b`, 'i')}));
+/* ---- area: a "Location: …" line wins, otherwise the first area named ----
+   An area is found by its name or one of its other names (Website settings: "Khao Lak" → Phang Nga), as whole words,
+   spaces optional ("Bang Tao" = "Bangtao"); "<name> Bay" is a bay, not the area ("Phang Nga Bay"). */
+const pattern = (name: string) =>
+  name
+    .trim()
+    .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    .split(/\s+/)
+    .join('\\s*-?\\s*');
+const areaPatterns = () =>
+  AREAS.map(a => ({
+    k: a.k,
+    re: new RegExp(`\\b(?:${[a.k, ...a.aliases].map(pattern).join('|')})\\b(?!\\s+bay\\b)`, 'i')
+  }));
 function firstArea(text: string) {
   let best: {k: string; at: number} | undefined;
-  for (const {k, re} of AREA_RE) {
+  for (const {k, re} of areaPatterns()) {
     const at = text.search(re);
     if (at >= 0 && (!best || at < best.at)) best = {k, at};
   }

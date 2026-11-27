@@ -7,7 +7,11 @@ import {when} from '@/lib/format';
 import {roleNames} from '@/lib/roles';
 import type {PageKey} from '@/types/admin';
 
-const PAGE_LABEL: Record<PageKey, string> = {properties: 'Properties management', employees: 'Employees management'};
+const PAGE_LABEL: Record<PageKey, string> = {
+  properties: 'Properties management',
+  employees: 'Employees management',
+  settings: 'Website settings'
+};
 import {authApi} from '@/services/authApi';
 
 export default function AccountPanel() {

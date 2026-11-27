@@ -4,7 +4,8 @@
    is returned in `check` so the reviewer looks at it before approving. */
 import Anthropic from '@anthropic-ai/sdk';
 import {env} from '../config/env.js';
-import {AREAS, placeOf, TYPES} from '../routes/listings.js';
+import {TYPES} from '../routes/listings.js';
+import {placeIn, type Area} from './settings.js';
 
 export const aiEnabled = () => !!env.ai.apiKey;
 
@@ -98,11 +99,17 @@ const nullable = (type: 'integer' | 'string', description: string) => ({
   anyOf: [{type}, {type: 'null'}],
   description
 });
-const oneOfOrNull = (values: string[], description: string) => ({
+const oneOfOrNull = (values: readonly string[], description: string) => ({
   anyOf: [{type: 'string', enum: values}, {type: 'null'}],
   description
 });
-const SCHEMA = {
+/* the areas come from the database (Website settings), with the other names people use for them */
+const aliasHint = (areas: Area[]) =>
+  areas
+    .filter(a => a.aliases.length)
+    .map(a => `${a.aliases.join(' / ')} = ${a.k}`)
+    .join('; ');
+const schemaFor = (areas: Area[]) => ({
   type: 'object',
   additionalProperties: false,
   required: [
@@ -133,8 +140,8 @@ const SCHEMA = {
       'Property type: as entered, else from the notes, else from the photos (villa = pool villa, house = house without the villa label, condo = apartment)'
     ),
     area: oneOfOrNull(
-      AREAS,
-      'Area: as entered, else where the notes say the property is (Khao Lak / Natai = Phang Nga; Laguna = Bang Tao; Muang = Mueang Phuket; prefer the most specific area named, e.g. Kata rather than Mueang Phuket), else null. A place it is merely near does not count'
+      areas.map(a => a.k),
+      `Area: as entered, else where the notes say the property is (${aliasHint(areas)}; prefer the most specific area named, e.g. a beach area rather than its district), else null. A place it is merely near does not count`
     ),
     price: nullable(
       'integer',
@@ -177,7 +184,7 @@ const SCHEMA = {
       description: 'Every field you estimated from the photos or were unsure of, rather than read from the notes'
     }
   }
-};
+});
 
 const SYSTEM = `You write property listings for Elevare Property Partners, a real-estate agency in Phuket, Thailand. You are
 given photos of one property, the agent's short notes, and the facts the agent entered. Write a draft listing that a
@@ -220,12 +227,19 @@ export function amountsIn(notes: string) {
 }
 const NOT_ENTERED = 'not entered: read it from the notes';
 
-export async function writeListing(facts: AiFacts, images: AiImage[]): Promise<AiListing & {model: string}> {
+/* areas: the current area list (Website settings) */
+export async function writeListing(
+  facts: AiFacts,
+  images: AiImage[],
+  areas: Area[]
+): Promise<AiListing & {model: string}> {
+  const placeOf = (name: string) => placeIn(areas, name);
+  const provinces = [...new Set(areas.map(a => a.province))].join(' or ');
   const rentGiven = facts.mode === 'rent';
   const brief = [
     `Listing: ${facts.mode ? (facts.mode === 'buy' ? 'for sale' : 'for rent (monthly)') : NOT_ENTERED}`,
     `Property type: ${facts.type ? (TYPE_LABEL[facts.type] ?? facts.type) : NOT_ENTERED}`,
-    `Area: ${facts.area ? placeOf(facts.area) : `${NOT_ENTERED} (Phuket areas, or Phang Nga)`}`,
+    `Area: ${facts.area ? placeOf(facts.area) : `${NOT_ENTERED} (an area in ${provinces})`}`,
     `Price: ${facts.price ? `${facts.price.toLocaleString('en-US')} THB${rentGiven ? ' per month' : ''}` : NOT_ENTERED}`,
     `Amenity keys: ${Object.entries(AMENITY_LABEL)
       .map(([k, v]) => `${k} = ${v}`)
@@ -243,7 +257,7 @@ export async function writeListing(facts: AiFacts, images: AiImage[]): Promise<A
     betas: ['server-side-fallback-2026-07-01'],
     /* a safety classifier's false positive is retried on Anthropic's recommended model instead of failing */
     fallbacks: 'default',
-    output_config: {effort: 'medium', format: {type: 'json_schema', schema: SCHEMA}},
+    output_config: {effort: 'medium', format: {type: 'json_schema', schema: schemaFor(areas)}},
     system: SYSTEM,
     messages: [
       {
@@ -285,7 +299,7 @@ export async function writeListing(facts: AiFacts, images: AiImage[]): Promise<A
   };
   const mode = fromAi(facts.mode, out.mode === 'rent' || out.mode === 'buy' ? out.mode : null, 'mode');
   const type = fromAi(facts.type, TYPES.includes(out.type as string) ? (out.type as string) : null, 'type');
-  const area = fromAi(facts.area, AREAS.includes(out.area as string) ? (out.area as string) : null, 'area');
+  const area = fromAi(facts.area, areas.some(a => a.k === out.area) ? (out.area as string) : null, 'area');
   /* a price must be written in the notes: a number the AI came up with on its own is dropped */
   const readPrice = whole(out.price, 1, Number.MAX_SAFE_INTEGER);
   const price = fromAi(

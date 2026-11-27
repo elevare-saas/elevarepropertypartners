@@ -123,6 +123,8 @@ the dashboard sidebar. It then appears in Roles & access, granted to no role unt
 | `GET /api/listings` · `GET /api/listings/:id` | public | published listings, in the shape the website uses |
 | `GET /api/admin/listings` | all roles | every listing, including hidden ones |
 | `POST /api/admin/listings` · `PUT/DELETE /api/admin/listings/:id` | Properties page | up to 20 `photos`; `status`: `live` \| `draft` \| `hidden` |
+| `GET /api/settings` | public | areas, market estimates, contact details |
+| `GET /api/admin/settings` · `PUT /api/admin/settings/{areas,market,contact}` | Website settings page | `{value}`; areas: renames move properties, in-use areas can't be removed (409) |
 | `PATCH /api/admin/listings/:id/status` · `POST /api/admin/listings/status` | Properties page | `{status}` for one, `{ids, status}` for several; going live clears the AI's "please check" list |
 | `GET /api/admin/ai-drafts/status` · `POST /api/admin/ai-drafts` | Properties page | `{notes, photos, refCode?, mode?, type?, area?, price?}` (left out = read from the notes) → a draft listing (given code, or the next ELV code; 409 if taken); 503 without `ANTHROPIC_API_KEY` |
 | `POST /api/admin/listings/delete` `{ids}` or `{all: true}` | Properties page | bulk delete → `{deleted}` |
@@ -152,6 +154,21 @@ short and full descriptions, bedrooms, bathrooms, sizes, amenities and features.
 - Fields the AI estimated from the photos are listed in `ai.check` and marked "please check" in the editor until the
   listing first goes live; the notes it started from are kept in `ai.notes`. Publishing an unreviewed AI draft straight
   from the list asks first.
+
+## Website settings (database, not code)
+
+The areas, the market estimates behind "vs. area average", and the public contact details live in the `site_settings`
+table (one JSON value per key: `areas`, `market`, `contact`; `src/lib/settings.ts`). `npm run db:migrate` fills it once
+with the starting values; after that the database is the only source, edited in the dashboard under
+**Website settings** (Super Admins, or any role granted that page).
+
+- The website loads them from `GET /api/settings` before a page renders; the API checks properties against the
+  current area list; the AI gets the area list and each area's other names; the home page's business data (email,
+  phone, areas served) is filled from them.
+- Areas: name, description, price level (1 = island average), province ("Phang Nga" areas aren't shown as
+  "…, Phuket"), other names ("Khao Lak" → Phang Nga) used by the notes reader and the website search. Renaming an area
+  moves its properties in the same transaction; an area with properties can't be removed.
+- Secrets never go here: they stay in `.env` / Vercel environment variables.
 
 ## Listing status: live, draft, hidden
 

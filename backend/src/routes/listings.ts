@@ -14,29 +14,10 @@ import {
 } from '../db/pg.js';
 import {requirePage} from '../middleware/auth.js';
 import {canStorePhotos, deletePhoto, isValidPhoto, savePhoto} from '../lib/photoStore.js';
+import {getAreas, TYPES as SETTINGS_TYPES} from '../lib/settings.js';
 
-/* must match the frontend's AREAS and AMEN (src/concierge/data.ts): the matching engine prices by area and scores by amenity */
-export const AREAS = [
-  'Kata',
-  'Karon',
-  'Rawai',
-  'Nai Harn',
-  'Chalong',
-  'Phuket Town',
-  'Patong',
-  'Kamala',
-  'Surin',
-  'Bang Tao',
-  'Cape Yamu',
-  'Thalang',
-  'Kathu',
-  'Mueang Phuket',
-  'Phang Nga'
-];
-/* the province a listing is in: every area is in Phuket except Phang Nga, its own province (Khao Lak, Natai…) */
-export const provinceOf = (area: string) => (area === 'Phang Nga' ? 'Phang Nga' : 'Phuket');
-/* "Kata, Phuket" · "Phang Nga" · "Mueang Phuket" (a name that already says the province doesn't repeat it) */
-export const placeOf = (area: string) => (area.endsWith(provinceOf(area)) ? area : `${area}, ${provinceOf(area)}`);
+/* areas live in the database (Website settings → lib/settings.ts). Amenities and types stay here: they must match the
+   frontend's AMEN and TYPES (src/concierge/data.ts), which the matching engine scores by. */
 export const AMENITIES = [
   'pool',
   'fibre',
@@ -54,7 +35,9 @@ export const AMENITIES = [
   'commute',
   'furnished'
 ];
-export const TYPES = ['villa', 'condo', 'townhouse', 'house'];
+export const TYPES: readonly string[] = SETTINGS_TYPES;
+/* the area names a property may have, from the database */
+export const areaNames = async () => (await getAreas()).map(a => a.k);
 
 type Row = ListingRow;
 
@@ -116,7 +99,8 @@ function optionalArea(v: unknown, label: string, errors: string[]) {
     errors.push(`${label} must be a whole number of m² (10 or more).`);
   return n;
 }
-export function validate(b: Record<string, unknown>) {
+/* areas: the area names allowed right now (areaNames()) */
+export function validate(b: Record<string, unknown>, areas: readonly string[]) {
   const e: string[] = [];
   const mode = b.mode,
     type = b.type,
@@ -132,7 +116,7 @@ export function validate(b: Record<string, unknown>) {
     hue = b.hue == null ? 260 : int(b.hue);
   if (mode !== 'rent' && mode !== 'buy') e.push('Choose rent or sale.');
   if (!name) e.push('Listing title is required.');
-  if (!AREAS.includes(area as string)) e.push('Choose an area.');
+  if (!areas.includes(area as string)) e.push('Choose an area.');
   if (!TYPES.includes(type as string)) e.push('Choose a property type.');
   if (!Number.isInteger(beds) || beds < 1 || beds > 20) e.push('Bedrooms must be a whole number from 1 to 20.');
   /* optional: blank → null */
@@ -282,11 +266,11 @@ export const adminListings = Router();
 
 adminListings.get('/', requirePage('properties'), async (_req, res) => {
   const {rows} = await query<Row>(`select ${LISTING_COLS} from listings order by updated_at desc, seq desc`);
-  res.json({listings: rows.map(toAdmin), areas: AREAS, amenities: AMENITIES});
+  res.json({listings: rows.map(toAdmin), areas: await areaNames(), amenities: AMENITIES});
 });
 
 adminListings.post('/', requirePage('properties'), async (req, res) => {
-  const {errors, value: v} = validate(req.body ?? {});
+  const {errors, value: v} = validate(req.body ?? {}, await areaNames());
   if (errors.length) return res.status(400).json({error: errors.join(' '), errors});
   try {
     return res.status(201).json({listing: toAdmin(await insertListing(v, req.user!.email))});
@@ -299,7 +283,7 @@ adminListings.post('/', requirePage('properties'), async (req, res) => {
 adminListings.put('/:id', requirePage('properties'), async (req, res) => {
   const old = await get(String(req.params.id));
   if (!old) return res.status(404).json({error: 'Listing not found.'});
-  const {errors, value: v} = validate(req.body ?? {});
+  const {errors, value: v} = validate(req.body ?? {}, await areaNames());
   if (errors.length) return res.status(400).json({error: errors.join(' '), errors});
   let row;
   try {

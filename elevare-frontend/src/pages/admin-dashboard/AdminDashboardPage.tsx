@@ -10,8 +10,9 @@ import {canAccess} from '@/lib/roles';
 import AccountPanel from './components/AccountPanel';
 import EmployeesPanel from './components/EmployeesPanel';
 import PropertiesPanel from './components/PropertiesPanel';
+import SettingsPanel from './components/SettingsPanel';
 
-type Section = 'properties' | 'employees' | 'account';
+type Section = 'properties' | 'employees' | 'settings' | 'account';
 
 const icon = (d: string) => (
   <svg
@@ -40,6 +41,13 @@ const SECTIONS: Record<Section, {label: string; icon: ReactNode; panel: () => Re
     ),
     panel: () => <EmployeesPanel />
   },
+  settings: {
+    label: 'Website settings',
+    icon: icon(
+      'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z'
+    ),
+    panel: () => <SettingsPanel />
+  },
   account: {
     label: 'Account management',
     icon: icon('M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8M4 20a8 8 0 0 1 16 0'),
@@ -52,7 +60,7 @@ export default function AdminDashboardPage() {
   const {logout} = useAuth();
   /* only the pages this user's roles grant; Account management is always there */
   const sections: Section[] = [
-    ...(['properties', 'employees'] as const).filter(page => canAccess(user, page)),
+    ...(['properties', 'employees', 'settings'] as const).filter(page => canAccess(user, page)),
     'account'
   ];
   const home = sections[0];

@@ -11,6 +11,7 @@ import {healthRouter} from './routes/health.js';
 import {adminLeads, publicLeads} from './routes/leads.js';
 import {adminListings, publicListings} from './routes/listings.js';
 import {seoRouter, serveFrontend} from './routes/seo.js';
+import {adminSettings, publicSettings} from './routes/settings.js';
 import {rolesRouter} from './routes/roles.js';
 import {usersRouter} from './routes/users.js';
 
@@ -33,6 +34,8 @@ export function createApp() {
   app.use('/api/auth', authRouter);
   app.use('/api/listings', publicListings);
   app.use('/api/leads', publicLeads);
+  app.use('/api/settings', publicSettings);
+  app.use('/api/admin/settings', adminSettings);
   app.use('/api/admin/listings', adminListings);
   app.use('/api/admin/ai-drafts', aiDrafts);
   app.use('/api/admin/leads', adminLeads);

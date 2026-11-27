@@ -7,7 +7,8 @@ import {one} from '../db/pg.js';
 import {requirePage} from '../middleware/auth.js';
 import {log} from '../lib/logger.js';
 import {AiError, aiEnabled, writeListing, type AiImage} from '../lib/aiWriter.js';
-import {AREAS, insertListing, MAX_PHOTOS, refTaken, toAdmin, TYPES, validate} from './listings.js';
+import {insertListing, MAX_PHOTOS, refTaken, toAdmin, TYPES, validate} from './listings.js';
+import {getAreas} from '../lib/settings.js';
 import {isValidPhoto, readPhoto} from '../lib/photoStore.js';
 
 export const MAX_AI_IMAGES = 8;
@@ -43,6 +44,8 @@ aiDrafts.post('/', requirePage('properties'), async (req, res) => {
       .json({error: 'AI drafts are not set up yet: the Claude API key (ANTHROPIC_API_KEY) is missing.'});
   const b = req.body ?? {};
   const errors: string[] = [];
+  const areas = await getAreas();
+  const names = areas.map(a => a.k);
   /* rent/sale, type, area and price are optional: left out, the AI reads them from the notes */
   const given = (v: unknown) => v !== undefined && v !== null && v !== '';
   const mode = given(b.mode) ? b.mode : undefined,
@@ -55,7 +58,7 @@ aiDrafts.post('/', requirePage('properties'), async (req, res) => {
     .toUpperCase();
   if (mode !== undefined && mode !== 'rent' && mode !== 'buy') errors.push('Choose rent or sale.');
   if (type !== undefined && !TYPES.includes(type)) errors.push('Choose a property type.');
-  if (area !== undefined && !AREAS.includes(area)) errors.push('Choose an area.');
+  if (area !== undefined && !names.includes(area)) errors.push('Choose an area.');
   if (price !== undefined && (!Number.isSafeInteger(price) || price <= 0)) errors.push('Price: a whole number of THB.');
   if (!notes && !(mode && type && area && price))
     errors.push('Write the notes, or fill in rent/sale, type, area and price.');
@@ -81,32 +84,35 @@ aiDrafts.post('/', requirePage('properties'), async (req, res) => {
 
   let ai;
   try {
-    ai = await writeListing({mode, type, area, price, notes}, images);
+    ai = await writeListing({mode, type, area, price, notes}, images, areas);
   } catch (e) {
     if (e instanceof AiError) return res.status(e.status).json({error: e.message});
     log.warn(`AI draft failed: ${(e as Error).message}`);
     return res.status(502).json({error: 'The AI service did not answer. Please try again in a minute.'});
   }
 
-  const {errors: invalid, value} = validate({
-    mode: ai.mode,
-    type: ai.type,
-    area: ai.area,
-    price: ai.price,
-    name: ai.name,
-    line: ai.line,
-    description: ai.description,
-    beds: ai.beds,
-    baths: ai.baths,
-    sqm: ai.sqm,
-    living: ai.living,
-    land: ai.land,
-    own: ai.own,
-    am: ai.am,
-    ex: ai.ex,
-    photos,
-    status: 'draft'
-  });
+  const {errors: invalid, value} = validate(
+    {
+      mode: ai.mode,
+      type: ai.type,
+      area: ai.area,
+      price: ai.price,
+      name: ai.name,
+      line: ai.line,
+      description: ai.description,
+      beds: ai.beds,
+      baths: ai.baths,
+      sqm: ai.sqm,
+      living: ai.living,
+      land: ai.land,
+      own: ai.own,
+      am: ai.am,
+      ex: ai.ex,
+      photos,
+      status: 'draft'
+    },
+    names
+  );
   if (invalid.length)
     return res.status(502).json({error: `The AI draft was incomplete (${invalid.join(' ')}). Please try again.`});
 

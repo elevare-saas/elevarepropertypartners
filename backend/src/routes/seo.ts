@@ -9,7 +9,7 @@ import {join} from 'node:path';
 import {env} from '../config/env.js';
 import {LISTING_COLS, one, query, type ListingRow} from '../db/pg.js';
 import {log} from '../lib/logger.js';
-import {placeOf, provinceOf} from './listings.js';
+import {getAreas, getSettings, placeIn, provinceIn, type Area, type Settings} from '../lib/settings.js';
 
 const BRAND = 'Elevare Property Partners';
 const TYPE_LABEL: Record<string, string> = {villa: 'Villa', condo: 'Condo', townhouse: 'Townhouse', house: 'House'};
@@ -79,7 +79,7 @@ const paragraphs = (text: string) =>
     .map(s => `<p>${esc(s)}</p>`)
     .join('');
 
-function listingJsonLd(l: ListingRow) {
+function listingJsonLd(l: ListingRow, areas: Area[]) {
   const url = abs(listingPath(l));
   return {
     '@context': 'https://schema.org',
@@ -110,7 +110,7 @@ function listingJsonLd(l: ListingRow) {
       address: {
         '@type': 'PostalAddress',
         addressLocality: l.area,
-        addressRegion: provinceOf(l.area),
+        addressRegion: provinceIn(areas, l.area),
         addressCountry: 'TH'
       }
     }
@@ -141,7 +141,8 @@ async function pageFor(path: string): Promise<Page | null> {
       path,
       noindex: true
     };
-  const what = `${l.beds}-bed ${(TYPE_LABEL[l.type] ?? l.type).toLowerCase()} ${l.mode === 'rent' ? 'for rent' : 'for sale'} in ${placeOf(l.area)}`;
+  const areas = await getAreas();
+  const what = `${l.beds}-bed ${(TYPE_LABEL[l.type] ?? l.type).toLowerCase()} ${l.mode === 'rent' ? 'for rent' : 'for sale'} in ${placeIn(areas, l.area)}`;
   return {
     status: 200,
     title: `${l.name}: ${what} | ${BRAND}`,
@@ -149,7 +150,7 @@ async function pageFor(path: string): Promise<Page | null> {
     path: listingPath(l),
     /* link previews always show the Elevare image (the property photo stays in the page and its JSON-LD) */
     jsonLd: [
-      listingJsonLd(l),
+      listingJsonLd(l, areas),
       breadcrumbs([
         ['Home', '/'],
         [l.name, listingPath(l)]
@@ -187,6 +188,20 @@ function headHtml(p: Page) {
   ].join('\n    ');
 }
 
+/* the business details in index.html's JSON-LD (email, phone, areas served) come from Website settings */
+function withBusinessDetails(html: string, s: Settings) {
+  const served = [
+    ...[...new Set(s.areas.map(a => a.province))].map(p => ({'@type': 'AdministrativeArea', name: `${p}, Thailand`})),
+    ...s.areas.filter(a => a.k !== a.province).map(a => ({'@type': 'Place', name: a.k}))
+  ];
+  return html
+    .replace(/"areaServed": \[[\s\S]*?\]/, `"areaServed": ${JSON.stringify(served)}`)
+    .replace(
+      /"email": "[^"]*"/,
+      `"email": ${JSON.stringify(s.contact.email)}${s.contact.whatsapp ? `, "telephone": ${JSON.stringify('+' + s.contact.whatsapp)}` : ''}`
+    );
+}
+
 /* index.html marks the replaceable block with <!--seo:start--> … <!--seo:end--> */
 const SEO_BLOCK = /<!--seo:start-->[\s\S]*?<!--seo:end-->/;
 let template: string | null = null;
@@ -202,6 +217,7 @@ export function serveFrontend(app: express.Express) {
     let html = template;
     let status = 200;
     try {
+      html = withBusinessDetails(html, await getSettings());
       /* home: a plain list of every property, so crawlers can reach each detail page (the app replaces it) */
       if (path === '/') {
         const rows = await published();

@@ -2,7 +2,7 @@
 import type {Listing, Mode, PropType} from '@/concierge/data';
 
 /* dashboard pages a role can grant (backend/src/lib/roles.ts → PAGES); Account management is always open */
-export type PageKey = 'properties' | 'employees';
+export type PageKey = 'properties' | 'employees' | 'settings';
 
 export interface RoleRef {
   id: string;

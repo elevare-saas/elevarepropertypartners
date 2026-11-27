@@ -8,7 +8,8 @@ import {one} from '../db/pg.js';
    A new page: add it here (and to the frontend sidebar); it appears in the role editor, granted to no role yet. */
 export const PAGES = [
   {key: 'properties', label: 'Properties management', description: 'Add, edit, publish and remove properties'},
-  {key: 'employees', label: 'Employees management', description: 'Add employees, give them roles, reset passwords'}
+  {key: 'employees', label: 'Employees management', description: 'Add employees, give them roles, reset passwords'},
+  {key: 'settings', label: 'Website settings', description: 'Areas, market estimates and contact details'}
 ] as const;
 export type PageKey = (typeof PAGES)[number]['key'];
 const PAGE_KEYS: readonly string[] = PAGES.map(p => p.key);

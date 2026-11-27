@@ -1,8 +1,13 @@
-/* pages load on demand, so the public site never downloads admin code */
+/* pages load on demand, so the public site never downloads admin code.
+   Website settings (areas, market estimates, contact details) come from the database before anything renders. */
 import ReactDOM from 'react-dom/client';
 import {initAnalytics} from './lib/analytics';
 import {idFromPath} from './lib/seo';
-import {loadListings} from './pages/home/loadListings';
+import {loadSettings} from './lib/siteSettings';
+import {loadListings as loadListingsOnly} from './pages/home/loadListings';
+
+/* listings and settings load side by side */
+const loadListings = () => Promise.all([loadListingsOnly(), loadSettings()]);
 import {adminPathFor} from './routes/paths';
 import './index.css';
 
@@ -16,7 +21,9 @@ const listingId = idFromPath(path);
 if (adminPath) {
   if (adminPath + url.search !== location.pathname + location.search || location.hash)
     history.replaceState(null, '', adminPath + url.search);
-  import('./routes/AdminRoutes').then(({default: AdminRoutes}) => root.render(<AdminRoutes />));
+  Promise.all([import('./routes/AdminRoutes'), loadSettings()]).then(([{default: AdminRoutes}]) =>
+    root.render(<AdminRoutes />)
+  );
 } else {
   initAnalytics();
   if (path === '/properties' || path === '/properties/for-rent' || path === '/properties/for-sale')
@@ -39,6 +46,8 @@ if (adminPath) {
       if (result === 'offline') alert('We couldn’t load this home just now. Please try again in a moment.');
     });
   } else {
-    import('./pages/not-found/NotFoundPage').then(({default: NotFoundPage}) => root.render(<NotFoundPage />));
+    Promise.all([import('./pages/not-found/NotFoundPage'), loadSettings()]).then(([{default: NotFoundPage}]) =>
+      root.render(<NotFoundPage />)
+    );
   }
 }

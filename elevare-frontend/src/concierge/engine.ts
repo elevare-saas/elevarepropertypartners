@@ -505,14 +505,9 @@ export function parseAsk(txt: string) {
       }
     }
   }
+  /* an area's name or one of its other names (Website settings), e.g. "khao lak" → Phang Nga */
   AREAS.forEach(a => {
-    if (
-      t.includes(a.k.toLowerCase()) ||
-      (a.k === 'Bang Tao' && /bangtao|laguna/.test(t)) ||
-      (a.k === 'Phuket Town' && /old town|town centre|city/.test(t)) ||
-      (a.k === 'Phang Nga' && /phangnga|khao lak|khaolak|natai/.test(t)) ||
-      (a.k === 'Mueang Phuket' && /muang phuket|mueang/.test(t))
-    ) {
+    if ([a.k, ...a.aliases].some(n => t.includes(n.toLowerCase()))) {
       S.area = a.k;
       S.done.add('area');
       got.push(a.k);

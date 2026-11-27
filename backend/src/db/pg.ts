@@ -239,6 +239,13 @@ alter table listings add column if not exists ai jsonb;
 alter table listings add column if not exists description text not null default '';
 -- optional indoor living area, next to the floor (total built-up) area
 alter table listings add column if not exists living_sqm integer;
+-- website settings edited in the dashboard: areas, market estimates, contact details (lib/settings.ts)
+create table if not exists site_settings (
+  key text primary key,
+  value jsonb not null,
+  updated_at timestamptz not null default now(),
+  updated_by text
+);
 do $$
 begin
   if not exists (select 1 from pg_constraint where conname = 'listings_draft_hidden') then
@@ -273,10 +280,11 @@ alter table sessions enable row level security;
 alter table listings enable row level security;
 alter table leads enable row level security;
 alter table app_meta enable row level security;
+alter table site_settings enable row level security;
 do $$
 begin
   if exists (select 1 from pg_roles where rolname = 'anon') then
-    revoke all on admins, roles, admin_roles, sessions, listings, leads, app_meta from anon, authenticated;
+    revoke all on admins, roles, admin_roles, sessions, listings, leads, app_meta, site_settings from anon, authenticated;
     revoke all on sequence listings_seq from anon, authenticated;
   end if;
 end $$;
@@ -284,4 +292,7 @@ end $$;
 
 export async function migrate() {
   await pool.query(SCHEMA);
+  /* first run: today's areas, market estimates and contact details go into site_settings */
+  const {seedSettings} = await import('../lib/settings.js');
+  await seedSettings();
 }

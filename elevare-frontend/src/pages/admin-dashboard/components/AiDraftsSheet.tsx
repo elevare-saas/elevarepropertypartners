@@ -357,7 +357,7 @@ export default function AiDraftsSheet({
                     <span className="text-[12px] text-muted">
                       These fill in from your notes. Check them, or leave one empty and the AI reads it from the notes.
                     </span>
-                    <div className="grid grid-cols-5 upto760:grid-cols-3 upto600:grid-cols-2 gap-[10px]">
+                    <div className="grid grid-cols-5 upto759:grid-cols-3 upto600:grid-cols-2 gap-[10px]">
                       <Field label="Ref code" hint={source(it, 'ref', 'Empty = next ELV code')}>
                         <Input
                           value={it.ref}
