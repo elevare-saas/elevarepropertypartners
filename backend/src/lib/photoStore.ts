@@ -2,8 +2,8 @@
    otherwise the UPLOAD_DIR folder served at /uploads/ (a normal server). */
 import {del, put} from '@vercel/blob';
 import {randomBytes} from 'node:crypto';
-import {mkdir, unlink, writeFile} from 'node:fs/promises';
-import {join} from 'node:path';
+import {mkdir, readFile, unlink, writeFile} from 'node:fs/promises';
+import {extname, join} from 'node:path';
 import {env} from '../config/env.js';
 import {log} from './logger.js';
 
@@ -34,6 +34,28 @@ export async function savePhoto(data: Buffer, ext: string, contentType: string):
   await mkdir(env.limits.uploadDir, {recursive: true});
   await writeFile(join(env.limits.uploadDir, name), data);
   return '/uploads/' + name;
+}
+
+const MEDIA_TYPE: Record<string, 'image/jpeg' | 'image/png' | 'image/webp'> = {
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.png': 'image/png',
+  '.webp': 'image/webp'
+};
+/* the bytes of a photo this app stored (for the AI to look at), or null if it can't be read */
+export async function readPhoto(url: string) {
+  const mediaType = isStoredPhoto(url) ? MEDIA_TYPE[extname(url).toLowerCase()] : undefined;
+  if (!mediaType) return null;
+  try {
+    if (BLOB_URL.test(url)) {
+      const r = await fetch(url, {signal: AbortSignal.timeout(15_000)});
+      return r.ok ? {data: Buffer.from(await r.arrayBuffer()), mediaType} : null;
+    }
+    return {data: await readFile(join(env.limits.uploadDir, url.slice('/uploads/'.length))), mediaType};
+  } catch (e) {
+    log.warn(`Photo not readable for the AI (${url}): ${(e as Error).message}`);
+    return null;
+  }
 }
 
 export async function deletePhoto(url: string | null | undefined) {

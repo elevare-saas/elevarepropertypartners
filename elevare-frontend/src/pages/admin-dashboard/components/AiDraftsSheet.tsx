@@ -9,7 +9,7 @@ import {useLatest} from '@/hooks/useLatest';
 import {useQuery} from '@/hooks/useQuery';
 import {cx, digits, thb} from '@/lib/format';
 import {errorMessage} from '@/lib/http';
-import {aiDraftsApi, listingsApi} from '@/services/listingsApi';
+import {aiDraftsApi, listingsApi, refCodeInNotes} from '@/services/listingsApi';
 import type {AdminListing} from '@/types/admin';
 import {MAX_PHOTOS} from './ListingEditor';
 
@@ -22,6 +22,9 @@ interface Item {
   /* files already uploaded (so a retry doesn't upload them again): file → URL */
   uploaded: Map<File, string>;
   notes: string;
+  /* reference code: taken from the notes until someone types in the box */
+  ref: string;
+  refTyped: boolean;
   mode: Mode;
   type: PropType;
   area: string;
@@ -39,6 +42,8 @@ const blank = (from?: Item): Item => ({
   thumbs: [],
   uploaded: new Map(),
   notes: '',
+  ref: '',
+  refTyped: false,
   /* a new card starts like the previous one: a batch is usually the same kind of property */
   mode: from?.mode ?? 'rent',
   type: from?.type ?? 'villa',
@@ -47,24 +52,37 @@ const blank = (from?: Item): Item => ({
   status: 'ready'
 });
 
-/* what's missing before the AI can start, or '' */
-function missing(it: Item) {
+const REF_CODE = /^[A-Z0-9][A-Z0-9._-]{0,29}$/;
+const refOf = (it: Item) => it.ref.trim().toUpperCase();
+
+/* what must be fixed before the AI can start, or '' */
+function missing(it: Item, all: Item[], codes: ReadonlySet<string>) {
   const m = [];
   if (!it.files.length) m.push('photos');
   if (!it.area) m.push('area');
   if (!Number(digits(it.price))) m.push(it.mode === 'buy' ? 'sale price' : 'monthly rent');
-  return m.length ? `Add ${m.join(', ')}.` : '';
+  const problems = m.length ? [`Add ${m.join(', ')}.`] : [];
+  const ref = refOf(it);
+  if (ref && !REF_CODE.test(ref)) problems.push('Ref code: letters, numbers, dots or dashes only.');
+  else if (ref && codes.has(ref)) problems.push(`Ref code ${ref} is already used by another property.`);
+  else if (ref && all.some(x => x.key !== it.key && x.status !== 'done' && refOf(x) === ref))
+    problems.push(`Ref code ${ref} is used twice in this batch.`);
+  return problems.join(' ');
 }
 
 export default function AiDraftsSheet({
+  existing,
   onClose,
   onCreated,
   onReview
 }: {
+  /* every property already in the dashboard, to catch a ref code that's taken before the AI runs */
+  existing: AdminListing[];
   onClose: () => void;
   onCreated: (l: AdminListing) => void;
   onReview: (l: AdminListing) => void;
 }) {
+  const codes = new Set(existing.flatMap(l => (l.refCode ? [l.refCode.toUpperCase()] : [])));
   const status = useQuery('ai-drafts-status', aiDraftsApi.status);
   const [items, setItems] = useState<Item[]>(() => [blank()]);
   const [running, setRunning] = useState(false);
@@ -101,7 +119,7 @@ export default function AiDraftsSheet({
 
   async function createAll() {
     setTried(true);
-    if (todo.some(missing)) return;
+    if (todo.some(it => missing(it, items, codes))) return;
     setRunning(true);
     stop.current = false;
     for (const it of todo) {
@@ -118,17 +136,16 @@ export default function AiDraftsSheet({
           }
           urls.push(url);
         }
-        /* 2. the AI looks at small copies of the first photos and writes the listing */
+        /* 2. the AI looks at the first photos (the server loads them) and writes the listing */
         patch(it.key, {step: 'AI is writing the listing… (about 30 seconds)'});
-        const images = await Promise.all(it.files.slice(0, maxImages).map(aiDraftsApi.preview));
         const listing = await aiDraftsApi.create({
           mode: it.mode,
           type: it.type,
           area: it.area,
           price: Number(digits(it.price)),
           notes: it.notes.trim(),
-          photos: urls,
-          images
+          refCode: refOf(it),
+          photos: urls
         });
         patch(it.key, {status: 'done', step: undefined, listing});
         onCreated(listing);
@@ -183,7 +200,7 @@ export default function AiDraftsSheet({
 
         {items.map((it, n) => {
           const locked = running || it.status === 'working' || it.status === 'done';
-          const why = tried && it.status !== 'done' ? missing(it) : '';
+          const why = tried && it.status !== 'done' ? missing(it, items, codes) : '';
           return (
             <Card key={it.key} className={cx('p-[14px] grid gap-[12px]', why && 'border-pink')}>
               <div className="flex items-center gap-[8px] flex-wrap">
@@ -274,18 +291,34 @@ export default function AiDraftsSheet({
 
                   <Field
                     label="Short notes for the AI"
-                    hint="Anything you know: rooms, sizes, view, furniture, ownership, what's nearby. Note form is fine."
+                    hint="Anything you know: ref code, rooms, sizes, view, furniture, ownership, what's nearby. Note form is fine."
                   >
                     <Textarea
-                      rows={3}
-                      maxLength={2000}
+                      rows={4}
+                      maxLength={5000}
                       value={it.notes}
-                      onChange={e => patch(it.key, {notes: e.target.value})}
-                      placeholder="3 bed 3 bath, 280 sqm built (220 sqm living) on 600 sqm land, sea view, fully furnished, 5 min to Kata beach, freehold"
+                      onChange={e => {
+                        const notes = e.target.value;
+                        patch(it.key, it.refTyped ? {notes} : {notes, ref: refCodeInNotes(notes)});
+                      }}
+                      placeholder="Ref: ELV-085. 3 bed 3 bath, 280 sqm built (220 sqm living) on 600 sqm land, sea view, fully furnished, 5 min to Kata beach, freehold"
                     />
                   </Field>
 
-                  <div className="grid grid-cols-4 upto600:grid-cols-2 gap-[10px]">
+                  <div className="grid grid-cols-5 upto760:grid-cols-3 upto600:grid-cols-2 gap-[10px]">
+                    <Field
+                      label="Ref code"
+                      hint={it.ref && !it.refTyped ? 'From your notes' : it.ref ? undefined : 'Empty = next ELV code'}
+                    >
+                      <Input
+                        value={it.ref}
+                        onChange={e => patch(it.key, {ref: e.target.value.toUpperCase(), refTyped: true})}
+                        placeholder="Auto"
+                        maxLength={30}
+                        className="font-mono"
+                        aria-label="Reference code"
+                      />
+                    </Field>
                     <Field label="Rent or sale">
                       <Select value={it.mode} onChange={e => patch(it.key, {mode: e.target.value as Mode})}>
                         <option value="rent">For rent</option>

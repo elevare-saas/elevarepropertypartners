@@ -85,12 +85,19 @@ export const toAdmin = (r: Row) => ({
   updatedAt: r.updatedAt,
   updatedBy: r.updatedBy
 });
+/* the AI's "please check" list is done with once a person puts the listing live (it was reviewed then) */
+const CLEAR_CHECKS_WHEN = (live: string) =>
+  `case when ${live} and ai is not null then jsonb_set(ai, '{check}', '[]'::jsonb) else ai end`;
 const get = (id: string) => one<Row>(`select ${LISTING_COLS} from listings where id = $1`, [id]);
 
 /* uploaded photos are deleted with their listing (or when taken out of its gallery); bundled /photos/ ones stay */
 const removePhotos = (urls: string[]) => Promise.all([...new Set(urls)].map(deletePhoto));
 export const MAX_PHOTOS = 20;
 export const MAX_DESCRIPTION = 5000;
+
+export const STATUSES = ['live', 'draft', 'hidden'] as const;
+export type Status = (typeof STATUSES)[number];
+const isStatus = (v: unknown): v is Status => STATUSES.includes(v as Status);
 
 const int = (v: unknown) => (typeof v === 'number' ? v : Number(v));
 /* an optional area in m²: blank → null */
@@ -159,8 +166,15 @@ export function validate(b: Record<string, unknown>) {
   const sent = Array.isArray(b.photos) ? b.photos : b.photo ? [b.photo] : [];
   const photos = [...new Set(sent.filter(isValidPhoto))];
   if (photos.length > MAX_PHOTOS) e.push(`Up to ${MAX_PHOTOS} photos per property.`);
-  /* a draft waits for review: it is never on the website */
-  const draft = b.draft === true;
+  /* live: on the website · draft: work in progress or waiting for review · hidden: finished, not shown.
+     Older clients send draft / published flags instead. */
+  const status: Status = isStatus(b.status)
+    ? b.status
+    : b.draft === true
+      ? 'draft'
+      : b.published === false
+        ? 'hidden'
+        : 'live';
   return {
     errors: e,
     value: {
@@ -183,8 +197,8 @@ export function validate(b: Record<string, unknown>) {
       line,
       description,
       photos,
-      draft,
-      published: !draft && b.published !== false
+      draft: status === 'draft',
+      published: status === 'live'
     }
   };
 }
@@ -285,7 +299,7 @@ adminListings.put('/:id', requirePage('properties'), async (req, res) => {
       `update listings set mode = $2, name = $3, area = $4, type = $5, beds = $6, sqm = $7, price = $8, own = $9,
               rent = $10, am = $11, ex = $12, hue = $13, line = $14, photo = $15, published = $16,
               ref_code = $17, land_sqm = $18, baths = $19, photos = $20, draft = $21, description = $22, living_sqm = $23,
-              updated_by = $24,
+              updated_by = $24, ai = ${CLEAR_CHECKS_WHEN('$16')},
               updated_at = now()
         where id = $1
         returning ${LISTING_COLS}`,
@@ -299,17 +313,45 @@ adminListings.put('/:id', requirePage('properties'), async (req, res) => {
   res.json({listing: toAdmin(row!)});
 });
 
-/* publishing a draft approves it: it stops being a draft */
+/* change the status of one or several listings without opening them: {status} or, for several, {ids, status} */
+const SET_STATUS = `published = ($2::text = 'live'), draft = ($2::text = 'draft'),
+  ai = ${CLEAR_CHECKS_WHEN(`($2::text = 'live')`)}, updated_by = $3, updated_at = now()`;
+const BAD_STATUS = 'Choose live, draft or hidden.';
+
+adminListings.patch('/:id/status', requirePage('properties'), async (req, res) => {
+  const status = req.body?.status;
+  if (!isStatus(status)) return res.status(400).json({error: BAD_STATUS});
+  const row = await one<Row>(`update listings set ${SET_STATUS} where id = $1 returning ${LISTING_COLS}`, [
+    String(req.params.id),
+    status,
+    req.user!.email
+  ]);
+  if (!row) return res.status(404).json({error: 'Listing not found.'});
+  res.json({listing: toAdmin(row)});
+});
+
+adminListings.post('/status', requirePage('properties'), async (req, res) => {
+  const {ids, status} = req.body ?? {};
+  if (!isStatus(status)) return res.status(400).json({error: BAD_STATUS});
+  if (!Array.isArray(ids) || !ids.length || ids.length > 1000 || !ids.every(i => typeof i === 'string'))
+    return res.status(400).json({error: 'Choose the properties to change.'});
+  const {rows} = await query<Row>(`update listings set ${SET_STATUS} where id = any($1) returning ${LISTING_COLS}`, [
+    ids,
+    status,
+    req.user!.email
+  ]);
+  res.json({listings: rows.map(toAdmin)});
+});
+
+/* older dashboards: published true → live, false → hidden */
 adminListings.patch('/:id/published', requirePage('properties'), async (req, res) => {
-  const old = await get(String(req.params.id));
-  if (!old) return res.status(404).json({error: 'Listing not found.'});
-  const published = !!req.body?.published;
-  const row = await one<Row>(
-    `update listings set published = $2, draft = draft and not $2, updated_by = $3, updated_at = now()
-      where id = $1 returning ${LISTING_COLS}`,
-    [old.id, published, req.user!.email]
-  );
-  res.json({listing: toAdmin(row!)});
+  const row = await one<Row>(`update listings set ${SET_STATUS} where id = $1 returning ${LISTING_COLS}`, [
+    String(req.params.id),
+    req.body?.published ? 'live' : 'hidden',
+    req.user!.email
+  ]);
+  if (!row) return res.status(404).json({error: 'Listing not found.'});
+  res.json({listing: toAdmin(row)});
 });
 
 adminListings.delete('/:id', requirePage('properties'), async (req, res) => {

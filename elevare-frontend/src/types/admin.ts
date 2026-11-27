@@ -82,9 +82,13 @@ export interface ListingInput {
   /* cover first, up to 20 */
   photos: string[];
   hue: number;
-  draft: boolean;
-  published: boolean;
+  status: ListingStatus;
 }
+
+/* live: on the website · draft: work in progress or waiting for review · hidden: finished, not shown */
+export type ListingStatus = 'live' | 'draft' | 'hidden';
+export const statusOf = (l: Pick<AdminListing, 'published' | 'draft'>): ListingStatus =>
+  l.published ? 'live' : l.draft ? 'draft' : 'hidden';
 
 export interface Credentials {
   email: string;
@@ -110,8 +114,8 @@ export interface AiDraftInput {
   area: string;
   price: number;
   notes: string;
-  /* uploaded photo URLs, cover first */
+  /* '' → the next ELV-### code */
+  refCode: string;
+  /* uploaded photo URLs, cover first (the server loads the first few for the AI) */
   photos: string[];
-  /* small copies of the first photos, for the AI to look at */
-  images: {mediaType: 'image/jpeg'; data: string}[];
 }

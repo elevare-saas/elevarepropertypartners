@@ -7,7 +7,7 @@ import PropertyImage from '@/components/site/PropertyImage';
 import {useMutation} from '@/hooks/useMutation';
 import {cx, digits, thb} from '@/lib/format';
 import {listingsApi} from '@/services/listingsApi';
-import type {AdminListing, ListingInput} from '@/types/admin';
+import {statusOf, type AdminListing, type ListingInput, type ListingStatus} from '@/types/admin';
 
 interface Draft {
   mode: Mode;
@@ -29,8 +29,7 @@ interface Draft {
   description: string;
   photos: string[];
   hue: number;
-  draft: boolean;
-  published: boolean;
+  status: ListingStatus;
 }
 export const MAX_PHOTOS = 20;
 const fromListing = (l: AdminListing | null, suggestedRef: string): Draft =>
@@ -55,8 +54,7 @@ const fromListing = (l: AdminListing | null, suggestedRef: string): Draft =>
         description: l.description ?? '',
         photos: l.photos?.length ? l.photos : l.photo ? [l.photo] : [],
         hue: l.hue,
-        draft: l.draft,
-        published: l.published
+        status: statusOf(l)
       }
     : {
         mode: 'rent',
@@ -78,14 +76,19 @@ const fromListing = (l: AdminListing | null, suggestedRef: string): Draft =>
         description: '',
         photos: [],
         hue: Math.floor(Math.random() * 360),
-        draft: false,
-        published: true
+        status: 'live'
       };
 const OWNERSHIP = [
   'Foreign freehold',
   'Leasehold 30 + 30 years',
   'Freehold (Thai company) or leasehold',
   'Leasehold or company freehold'
+];
+
+export const STATUS_CHOICES: [ListingStatus, string, string][] = [
+  ['live', 'Live', 'On the website now.'],
+  ['draft', 'Draft', 'Work in progress or waiting for review. Not on the website.'],
+  ['hidden', 'Hidden', 'Finished, but not shown (e.g. let or sold).']
 ];
 
 /* draft (form strings) → API payload */
@@ -114,9 +117,7 @@ const toInput = (d: Draft): ListingInput => {
     description: d.description.trim(),
     photos: d.photos,
     hue: d.hue,
-    /* ticking "Show on the website" approves a draft */
-    draft: d.draft && !d.published,
-    published: d.published
+    status: d.status
   };
 };
 
@@ -158,8 +159,9 @@ export default function ListingEditor({
   const error = saving.error || uploading.error;
   /* "2 of 5" while several photos upload one after another (each request must stay small) */
   const [progress, setProgress] = useState<string | null>(null);
-  /* fields the AI asked a person to check */
-  const check = new Set(listing?.draft ? (listing.ai?.check ?? []) : []);
+  /* fields the AI asked a person to check (cleared once the listing has gone live) */
+  const check = new Set(listing?.ai?.check ?? []);
+  const wasDraft = !!listing && statusOf(listing) === 'draft';
   const label = (key: string, text: string) =>
     check.has(key) ? (
       <>
@@ -223,11 +225,11 @@ export default function ListingEditor({
     >
       <form id="listing-form" onSubmit={save} className="grid gap-[18px]">
         <div id="editor-error">{error && <Alert>{error}</Alert>}</div>
-        {listing?.draft && (
+        {wasDraft && (
           <Alert kind="info">
             <b>Draft: not on the website.</b> Check every detail
-            {check.size ? ', especially the ones marked “please check”' : ''}, then tick “Approve and show on the
-            website” and save.
+            {check.size ? ', especially the ones marked “please check”' : ''}, then choose “Live” at the bottom and
+            save. Saving with “Draft” keeps your changes without publishing.
             {listing.ai?.notes && (
               <span className="block mt-[6px] text-[12.5px]">
                 Notes it was written from: <i>{listing.ai.notes}</i>
@@ -565,21 +567,27 @@ export default function ListingEditor({
             </span>
           </div>
 
-          <label className="flex items-center gap-[10px] cursor-pointer text-[14px] bg-surface border border-line rounded-[12px] py-[12px] px-[14px]">
-            <input
-              type="checkbox"
-              checked={d.published}
-              onChange={e => set('published', e.target.checked)}
-              className="w-[18px] h-[18px] accent-[#E05CB5]"
-            />
-            <span>
-              <b>{d.draft ? 'Approve and show on the website' : 'Show on the website'}</b>
-              <br />
-              <span className="text-[12px] text-muted">
-                {d.draft ? 'Leave unticked to keep it as a draft.' : 'Leave unticked to save it as hidden.'}
-              </span>
-            </span>
-          </label>
+          <div className="grid gap-[8px]">
+            <span className="text-[12px] text-muted font-semibold">Status</span>
+            <div className="grid grid-cols-3 upto600:grid-cols-1 gap-[8px]" role="radiogroup" aria-label="Status">
+              {STATUS_CHOICES.map(([s, title, about]) => (
+                <button
+                  key={s}
+                  type="button"
+                  role="radio"
+                  aria-checked={d.status === s}
+                  onClick={() => set('status', s)}
+                  className={cx(
+                    'border rounded-[12px] py-[10px] px-[12px] cursor-pointer text-left grid gap-[2px]',
+                    d.status === s ? 'grad-border text-ink' : 'border-line bg-surface text-muted hover:border-violet'
+                  )}
+                >
+                  <b className="text-[14px]">{s === 'live' && wasDraft ? 'Approve · Live' : title}</b>
+                  <span className="text-[12px] text-muted leading-snug">{about}</span>
+                </button>
+              ))}
+            </div>
+          </div>
         </fieldset>
       </form>
     </Sheet>

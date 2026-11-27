@@ -5,7 +5,7 @@ import PropertyImage from '@/components/site/PropertyImage';
 import {useCanAccess} from '@/hooks/useAuth';
 import {useToast} from '@/hooks/useToast';
 import {cx, thb, when} from '@/lib/format';
-import type {AdminListing} from '@/types/admin';
+import {statusOf, type AdminListing, type ListingStatus} from '@/types/admin';
 import {useListingFilters, type ListingFilters} from '@/pages/admin-dashboard/hooks/useListingFilters';
 import {useListings} from '@/pages/admin-dashboard/hooks/useListings';
 import AiDraftsSheet from './AiDraftsSheet';
@@ -15,8 +15,18 @@ export default function PropertiesPanel() {
   /* page access means full access (the CEO grants pages, not separate read-only rights) */
   const editable = useCanAccess('properties');
   const toast = useToast();
-  const {listings: rows, error, pendingId, bulkPending, upsert, togglePublished, remove, removeMany} = useListings();
-  const {filters, setFilter, shown, stats} = useListingFilters(rows);
+  const {
+    listings: rows,
+    error,
+    pendingId,
+    bulkPending,
+    upsert,
+    setStatus,
+    setStatusMany,
+    remove,
+    removeMany
+  } = useListings();
+  const {filters, setFilter, showOnly, shown, stats} = useListingFilters(rows);
   const [editing, setEditing] = useState<AdminListing | 'new' | null>(null);
   const [withAi, setWithAi] = useState(false);
 
@@ -54,11 +64,38 @@ export default function PropertiesPanel() {
     if (await removeMany('all')) setSelected(new Set());
   }
 
+  /* putting live an AI draft whose "please check" fields nobody has opened asks first */
+  function okToGoLive(ps: AdminListing[]) {
+    const unchecked = ps.filter(p => statusOf(p) !== 'live' && p.ai?.check?.length);
+    if (!unchecked.length) return true;
+    return confirm(
+      unchecked.length === 1
+        ? `“${unchecked[0].name}” was written by AI and has fields marked “please check” (${unchecked[0].ai!.check.join(', ')}).\n\nPublish it without reviewing? Tip: “Review” opens it with those fields marked.`
+        : `${unchecked.length} of these were written by AI and have fields marked “please check”.\n\nPublish them without reviewing?`
+    );
+  }
+  function changeStatus(p: AdminListing, status: ListingStatus) {
+    if (status === 'live' && !okToGoLive([p])) return;
+    void setStatus(p, status);
+  }
+  async function changePickedStatus(status: ListingStatus) {
+    const ps = picked.filter(p => statusOf(p) !== status);
+    if (!ps.length) return setSelected(new Set());
+    if (status === 'live' && !okToGoLive(ps)) return;
+    if (
+      await setStatusMany(
+        ps.map(p => p.id),
+        status
+      )
+    )
+      setSelected(new Set());
+  }
+
   function confirmRemove(p: AdminListing) {
     if (
       confirm(`Delete “${p.name}” permanently? This cannot be undone.
 
-Tip: use “Hide” instead if it may come back.`)
+Tip: set it to “Hidden” or “Draft” instead if it may come back.`)
     )
       void remove(p);
   }
@@ -70,7 +107,7 @@ Tip: use “Hide” instead if it may come back.`)
           <h1 className="text-[clamp(32px,5vw,44px)]">Properties management</h1>
           <p className="text-muted m-0 mt-[4px] text-[14px]">
             {editable
-              ? 'Live properties appear on the website straight away. Hidden ones stay here until you publish them.'
+              ? 'Live properties are on the website. Drafts (work in progress or AI drafts to review) and hidden ones stay here; change a status any time.'
               : 'You have read-only access. Ask a Super Admin if you need to edit properties.'}
           </p>
         </div>
@@ -85,12 +122,29 @@ Tip: use “Hide” instead if it may come back.`)
       </div>
 
       <div className="grid grid-cols-5 upto759:grid-cols-3 upto600:grid-cols-2 gap-[12px]">
-        {stats.map(({label, value}) => (
-          <Card key={label} className="py-[14px] px-[16px]">
-            <div className="text-[12px] text-muted">{label}</div>
-            <div className="font-mono text-[26px] mt-[2px]">{rows ? value : '–'}</div>
-          </Card>
-        ))}
+        {stats.map(({label, value, status, mode}) => {
+          const on = filters.status === status && filters.mode === mode && !filters.query && filters.area === 'all';
+          return (
+            <button
+              key={label}
+              type="button"
+              onClick={() => showOnly(status, mode)}
+              aria-pressed={on}
+              title={`Show ${label.toLowerCase()}`}
+              className={cx(
+                'text-left bg-surface border rounded-[16px] py-[14px] px-[16px] cursor-pointer hover:border-violet',
+                on ? 'border-violet' : 'border-line'
+              )}
+            >
+              <div
+                className={cx('text-[12px]', status === 'draft' && value ? 'text-violet font-semibold' : 'text-muted')}
+              >
+                {label}
+              </div>
+              <div className="font-mono text-[26px] mt-[2px]">{rows ? value : '–'}</div>
+            </button>
+          );
+        })}
       </div>
 
       {error && <Alert>{error.message}</Alert>}
@@ -123,7 +177,7 @@ Tip: use “Hide” instead if it may come back.`)
         >
           <option value="all">Every status</option>
           <option value="live">Live</option>
-          <option value="draft">Drafts to review</option>
+          <option value="draft">Drafts</option>
           <option value="hidden">Hidden</option>
         </Select>
         <Select value={filters.area} onChange={e => setFilter('area', e.target.value)} aria-label="Area">
@@ -151,6 +205,15 @@ Tip: use “Hide” instead if it may come back.`)
           </label>
           {picked.length > 0 && (
             <>
+              <Btn size="sm" disabled={busy} onClick={() => void changePickedStatus('live')}>
+                Publish
+              </Btn>
+              <Btn size="sm" disabled={busy} onClick={() => void changePickedStatus('draft')}>
+                Move to draft
+              </Btn>
+              <Btn size="sm" disabled={busy} onClick={() => void changePickedStatus('hidden')}>
+                Hide
+              </Btn>
               <Btn size="sm" kind="danger" disabled={busy} onClick={() => void deletePicked()}>
                 {bulkPending ? 'Deleting…' : `Delete selected (${picked.length})`}
               </Btn>
@@ -216,7 +279,7 @@ Tip: use “Hide” instead if it may come back.`)
                     {p.published ? (
                       <Badge tone="good">Live</Badge>
                     ) : p.draft ? (
-                      <Badge tone="violet">Draft · review</Badge>
+                      <Badge tone="violet">{p.ai?.check?.length ? 'Draft · AI, to review' : 'Draft'}</Badge>
                     ) : (
                       <Badge>Hidden</Badge>
                     )}
@@ -249,12 +312,17 @@ Tip: use “Hide” instead if it may come back.`)
                       <Btn size="sm" kind={p.draft ? 'primary' : undefined} onClick={() => setEditing(p)}>
                         {p.draft ? 'Review' : 'Edit'}
                       </Btn>
-                      {/* a draft is approved from the editor, after a person has checked it */}
-                      {!p.draft && (
-                        <Btn size="sm" disabled={busy} onClick={() => void togglePublished(p)}>
-                          {p.published ? 'Hide' : 'Publish'}
-                        </Btn>
-                      )}
+                      <Select
+                        value={statusOf(p)}
+                        disabled={busy}
+                        onChange={e => changeStatus(p, e.target.value as ListingStatus)}
+                        aria-label={`Status of ${p.name}`}
+                        className="!w-auto !py-[5px] !px-[8px] !text-[13px]"
+                      >
+                        <option value="live">Live</option>
+                        <option value="draft">Draft</option>
+                        <option value="hidden">Hidden</option>
+                      </Select>
                       <Btn size="sm" kind="danger" disabled={busy} onClick={() => confirmRemove(p)}>
                         Delete
                       </Btn>
@@ -273,6 +341,7 @@ Tip: use “Hide” instead if it may come back.`)
 
       {withAi && (
         <AiDraftsSheet
+          existing={rows ?? []}
           onClose={() => setWithAi(false)}
           onCreated={upsert}
           onReview={l => {

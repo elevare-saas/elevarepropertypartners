@@ -1,5 +1,5 @@
 import {useMemo, useState} from 'react';
-import type {AdminListing} from '@/types/admin';
+import {statusOf, type AdminListing} from '@/types/admin';
 
 export interface ListingFilters {
   query: string;
@@ -14,10 +14,7 @@ export function matches(l: AdminListing, f: ListingFilters) {
   return (
     (f.mode === 'all' || l.mode === f.mode) &&
     (f.area === 'all' || l.area === f.area) &&
-    (f.status === 'all' ||
-      (f.status === 'live' && l.published) ||
-      (f.status === 'hidden' && !l.published && !l.draft) ||
-      (f.status === 'draft' && l.draft)) &&
+    (f.status === 'all' || statusOf(l) === f.status) &&
     (!q || `${l.name} ${l.id} ${l.refCode ?? ''} ${l.area} ${l.line}`.toLowerCase().includes(q))
   );
 }
@@ -31,14 +28,24 @@ export function useListingFilters(listings: AdminListing[] | undefined) {
 
   const stats = useMemo(() => {
     const all = listings ?? [];
+    /* each card is also a shortcut: it sets the filters to show exactly those properties */
+    const card = (label: string, status: ListingFilters['status'], mode: ListingFilters['mode'] = 'all') => ({
+      label,
+      status,
+      mode,
+      value: all.filter(l => (status === 'all' || statusOf(l) === status) && (mode === 'all' || l.mode === mode)).length
+    });
     return [
-      {label: 'Live for rent', value: all.filter(l => l.published && l.mode === 'rent').length},
-      {label: 'Live for sale', value: all.filter(l => l.published && l.mode === 'buy').length},
-      {label: 'Drafts to review', value: all.filter(l => l.draft).length},
-      {label: 'Hidden', value: all.filter(l => !l.published && !l.draft).length},
-      {label: 'Total', value: all.length}
+      card('Live for rent', 'live', 'rent'),
+      card('Live for sale', 'live', 'buy'),
+      card('Drafts', 'draft'),
+      card('Hidden', 'hidden'),
+      card('Total', 'all')
     ];
   }, [listings]);
 
-  return {filters, setFilter, shown, stats};
+  const showOnly = (status: ListingFilters['status'], mode: ListingFilters['mode']) =>
+    setFilters({...INITIAL, status, mode});
+
+  return {filters, setFilter, showOnly, shown, stats};
 }

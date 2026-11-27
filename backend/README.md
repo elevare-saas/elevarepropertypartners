@@ -15,7 +15,7 @@ sign-in and roles for the admin dashboard (`/admin-login`, `/admin-dashboard` in
 | `roles` | `name`, `description`, `pages` (page keys), `system` (the one built-in Super Admin role) |
 | `admin_roles` | which employee has which roles (several allowed) |
 | `sessions` | one per sign-in: `token_hash` (SHA-256 of the cookie token), `admin_id`, `expires_at` (expired ones are cleared on sign-in) |
-| `listings` | the properties: `id` (listing id), `seq` (display order), the website's listing fields, `line` (short card text), `description` (full text for the property page), `photos` (gallery, cover first; `photo` mirrors the cover), `draft` (waiting for review, never public), `ai` (notes an AI draft was written from + fields to check), `published`, `updated_by`… |
+| `listings` | the properties: `id` (listing id), `seq` (display order), the website's listing fields, `line` (short card text), `description` (full text for the property page), `photos` (gallery, cover first; `photo` mirrors the cover), `draft` + `published` (the status: live = published, draft = draft, hidden = neither), `ai` (notes an AI draft was written from + fields to check), `updated_by`… |
 | `leads` | website enquiries and viewing requests: `status` new / contacted / closed, the form fields in `data` (jsonb) |
 | `app_meta` | small flags, e.g. that the sample listings were loaded once |
 
@@ -122,8 +122,9 @@ the dashboard sidebar. It then appears in Roles & access, granted to no role unt
 | `POST /api/auth/logout` · `GET /api/auth/me` · `POST /api/auth/password` | signed in | |
 | `GET /api/listings` · `GET /api/listings/:id` | public | published listings, in the shape the website uses |
 | `GET /api/admin/listings` | all roles | every listing, including hidden ones |
-| `POST /api/admin/listings` · `PUT/DELETE /api/admin/listings/:id` · `PATCH …/:id/published` | Properties page | up to 20 `photos`; a `draft` is always hidden, and publishing it approves it |
-| `GET /api/admin/ai-drafts/status` · `POST /api/admin/ai-drafts` | Properties page | `{mode, type, area, price, notes, photos, images}` → a draft listing with the next ELV code; 503 without `ANTHROPIC_API_KEY` |
+| `POST /api/admin/listings` · `PUT/DELETE /api/admin/listings/:id` | Properties page | up to 20 `photos`; `status`: `live` \| `draft` \| `hidden` |
+| `PATCH /api/admin/listings/:id/status` · `POST /api/admin/listings/status` | Properties page | `{status}` for one, `{ids, status}` for several; going live clears the AI's "please check" list |
+| `GET /api/admin/ai-drafts/status` · `POST /api/admin/ai-drafts` | Properties page | `{mode, type, area, price, notes, refCode, photos}` → a draft listing (given code, or the next ELV code; 409 if taken); 503 without `ANTHROPIC_API_KEY` |
 | `POST /api/admin/listings/delete` `{ids}` or `{all: true}` | Properties page | bulk delete → `{deleted}` |
 | `POST /api/admin/listings/photo` (multipart `photo`) | Properties page | one JPG/PNG/WebP ≤ 8 MB per request (the dashboard sends several one by one) → its URL |
 | `POST /api/leads` | public (rate-limited) | each lead → `leads`, an email to `LEADS_NOTIFY_EMAIL`, and `LEAD_WEBHOOK_URL` |
@@ -137,14 +138,28 @@ The website shows only published listings from the database; with none in a cate
 ## AI listing drafts
 
 **Properties management → ✦ Add with AI** takes several properties at once. For each one, staff add photos, short notes
-and the four facts the AI must not guess (rent/sale, type, area, price). The dashboard uploads the photos, then sends
-small copies of the first 8 with the notes to `POST /api/admin/ai-drafts`, one property at a time. Claude
-(`AI_MODEL`, default `claude-opus-5-5`, with server-side refusal fallback) writes the title, the short and full
-descriptions, bedrooms, bathrooms, amenities and features.
+and the four facts the AI must not guess (rent/sale, type, area, price), plus an optional reference code (typed, or
+picked up from the notes, e.g. "Ref: ELV-084"; empty = the next ELV code; a code already in use is refused before the AI
+runs). The dashboard uploads the photos, then sends their addresses with the notes to `POST /api/admin/ai-drafts`, one
+property at a time; the server loads the first 8 photos itself (the host caps a request at ~4.4 MB, so photos never
+travel in it). Claude (`AI_MODEL`, default `claude-opus-5-5`, with server-side refusal fallback) writes the title, the
+short and full descriptions, bedrooms, bathrooms, sizes, amenities and features.
 
-- Every result is a **draft**: hidden until someone opens it (Review), checks it and ticks "Approve and show on the website".
-- Fields the AI estimated from the photos are listed in `ai.check` and marked "please check" in the editor; the notes it
-  started from are kept in `ai.notes`.
+- Every result is a **draft**: hidden until someone opens it (Review), checks it, chooses "Live" and saves.
+- Fields the AI estimated from the photos are listed in `ai.check` and marked "please check" in the editor until the
+  listing first goes live; the notes it started from are kept in `ai.notes`. Publishing an unreviewed AI draft straight
+  from the list asks first.
+
+## Listing status: live, draft, hidden
+
+| Status | Website | Meant for |
+|---|---|---|
+| Live | shown | on the market |
+| Draft | never | work in progress, or an AI draft waiting for review |
+| Hidden | never | finished but off the market (let, sold, paused) |
+
+Any property can move between the three at any time: in the editor (Status), from the list (the status menu on each
+row), or several at once (select, then Publish / Move to draft / Hide). The count cards at the top filter the list.
 - Sizes and ownership are kept only when the notes state them; the price, area, rent/sale and type are always the staff's.
 - Set `ANTHROPIC_API_KEY` (backend `.env` and Vercel); without it the button explains that the AI isn't set up.
   Each property costs a few cents of Claude API usage.

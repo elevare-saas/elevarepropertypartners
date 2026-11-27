@@ -24,8 +24,6 @@ export function createApp() {
   app.use(requestLog);
   app.use(securityHeaders);
   app.use(['/api', '/uploads'], corsPolicy);
-  /* AI drafts carry small copies of the photos for the AI (under Vercel's 4.5 MB request limit) */
-  app.use('/api/admin/ai-drafts', express.json({limit: '4mb'}));
   app.use(express.json({limit: env.limits.jsonBody}));
   app.use(cookieParser(env.session.secret));
   app.use('/api', sameOriginWrites);

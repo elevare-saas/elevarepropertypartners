@@ -3,7 +3,13 @@ import {useQuery} from '@/hooks/useQuery';
 import {useToast} from '@/hooks/useToast';
 import {errorMessage} from '@/lib/http';
 import {listingsApi} from '@/services/listingsApi';
-import type {AdminListing} from '@/types/admin';
+import type {AdminListing, ListingStatus} from '@/types/admin';
+
+const STATUS_DONE: Record<ListingStatus, string> = {
+  live: 'now live on the website',
+  draft: 'moved to drafts (off the website)',
+  hidden: 'hidden from the website'
+};
 
 export function useListings() {
   const toast = useToast();
@@ -24,15 +30,12 @@ export function useListings() {
     [setData]
   );
 
-  const togglePublished = useCallback(
-    async (listing: AdminListing) => {
+  const setStatus = useCallback(
+    async (listing: AdminListing, status: ListingStatus) => {
       setPendingId(listing.id);
       try {
-        const saved = await listingsApi.setPublished(listing.id, !listing.published);
-        upsert(saved);
-        toast.success(
-          `“${listing.name}” is ${saved.published ? 'now live on the website' : 'hidden from the website'}.`
-        );
+        upsert(await listingsApi.setStatus(listing.id, status));
+        toast.success(`“${listing.name}” ${STATUS_DONE[status]}.`);
       } catch (e) {
         toast.error(errorMessage(e));
       } finally {
@@ -40,6 +43,26 @@ export function useListings() {
       }
     },
     [upsert, toast]
+  );
+
+  /* resolves true on success */
+  const setStatusMany = useCallback(
+    async (ids: string[], status: ListingStatus) => {
+      setBulkPending(true);
+      try {
+        const saved = await listingsApi.setStatusMany(ids, status);
+        setData(rows => rows?.map(r => saved.find(s => s.id === r.id) ?? r));
+        toast.success(`${saved.length} ${saved.length === 1 ? 'property' : 'properties'} ${STATUS_DONE[status]}.`);
+        return true;
+      } catch (e) {
+        toast.error(errorMessage(e));
+        reload();
+        return false;
+      } finally {
+        setBulkPending(false);
+      }
+    },
+    [setData, reload, toast]
   );
 
   const remove = useCallback(
@@ -79,5 +102,17 @@ export function useListings() {
     [setData, reload, toast]
   );
 
-  return {listings, error, loading, reload, pendingId, bulkPending, upsert, togglePublished, remove, removeMany};
+  return {
+    listings,
+    error,
+    loading,
+    reload,
+    pendingId,
+    bulkPending,
+    upsert,
+    setStatus,
+    setStatusMany,
+    remove,
+    removeMany
+  };
 }
